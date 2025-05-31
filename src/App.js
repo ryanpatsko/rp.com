@@ -102,7 +102,7 @@ function App() {
             <p className="work-description">Building cool stuff on the side. Need a website or have an idea? Let's connect!</p>
             <div className="side-projects">
               <a href="https://eeeekcreative.com" target="_blank" rel="noopener noreferrer" className="project-link">Eeeek! Creative</a>
-              <a href="https://northparkleymarathons.com" target="_blank" rel="noopener noreferrer" className="project-link">North Parkley Marathons</a>
+              <a href="#" className="project-link">North Parkley Marathons</a>
             </div>
           </div>
         </div>
