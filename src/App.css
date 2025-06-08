@@ -419,6 +419,20 @@ footer {
   text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.6);
 }
 
+/* Gradient Letters for R and P */
+.gradient-letter {
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px rgba(79, 172, 254, 0.3);
+  font-weight: 700;
+}
+
+.forward-text {
+  opacity: 0.8;
+  font-style: italic;
+}
+
 /* Image Grid Section - Updated */
 .image-grid-section {
   background-color: #0a0a0a;

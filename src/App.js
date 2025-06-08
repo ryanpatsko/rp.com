@@ -63,7 +63,11 @@ function App() {
       {/* Full-width Parallax Image Section */}
       <section className="parallax-section" style={{ backgroundImage: `url(${angelsLandingGlory})` }}>
         <div className="parallax-content">
-          <h2>Relentless Forward Progress</h2>
+          <h2>
+            <span className="gradient-letter">R</span>elentless{' '}
+            <span className="forward-text">(forward)</span>{' '}
+            <span className="gradient-letter">P</span>rogress
+          </h2>
           <p>Pushing boundaries in technology, fitness, and adventure</p>
         </div>
       </section>
