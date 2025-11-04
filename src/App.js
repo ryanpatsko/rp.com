@@ -107,6 +107,7 @@ function App() {
             <div className="side-projects">
               <a href="https://eeeekcreative.com" target="_blank" rel="noopener noreferrer" className="project-link">Eeeek! Creative</a>
               <a href="#" className="project-link">North Parkley Marathons</a>
+              <a href="https://wildchild-makeup.com/" target="_blank" rel="noopener noreferrer" className="project-link">Wild Child Fabrications</a>
             </div>
           </div>
         </div>
