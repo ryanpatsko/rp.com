@@ -213,10 +213,10 @@ section {
   padding: 2rem;
   border-radius: 10px;
   width: 320px;
-  height: 400px;
+  min-height: 400px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
 }
