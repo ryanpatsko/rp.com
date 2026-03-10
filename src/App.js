@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import './App.css';
 import devilDogProfile from './assets/devil-dog-profile.jpg';
 import angelsLandingGlory from './assets/angels-landing-glory.jpg';
@@ -208,6 +209,7 @@ function App() {
       {/* Footer */}
       <footer>
         <p>© {new Date().getFullYear()} Ryan Patsko. All rights reserved.</p>
+        <p><Link to="/contests" style={{ color: '#4facfe', textDecoration: 'none' }}>Contests</Link></p>
       </footer>
     </div>
   );

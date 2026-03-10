@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /contests/{proxy+}",
+  "rawPath": "/contests/2026-1/config",
+  "requestContext": {
+    "http": {
+      "method": "GET",
+      "path": "/contests/2026-1/config"
+    }
+  }
+}

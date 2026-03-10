@@ -1,0 +1,11 @@
+{
+  "version": "2.0",
+  "routeKey": "POST /contests/{proxy+}",
+  "rawPath": "/contests/2026-1/import",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/contests/2026-1/import"
+    }
+  }
+}
