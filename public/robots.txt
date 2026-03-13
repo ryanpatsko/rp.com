@@ -1,3 +1,6 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /contests
+
+Sitemap: https://ryanpatsko.com/sitemap.xml
