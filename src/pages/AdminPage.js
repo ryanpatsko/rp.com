@@ -196,12 +196,13 @@ export default function AdminPage() {
         playerName: playerIdToName.get(pid) ?? `ID ${pid}`,
       };
     });
-    return list;
+    return [...list].reverse();
   }, [draft, numTeams, draftOrder, playerIdToName]);
 
   const adminGridRows = useMemo(() => {
     const withPpg = (playerPool || []).filter((pl) => pl.pts_per_game != null);
-    const sorted = [...withPpg].sort((a, b) => (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
+    const available = withPpg.filter((pl) => !draftedPlayerIds.has(pl.id));
+    const sorted = [...available].sort((a, b) => (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
     return sorted.map((pl) => ({
       id: pl.id,
       name: pl.name,
@@ -210,7 +211,6 @@ export default function AdminPage() {
       region: pl.region ?? '—',
       seed: pl.seed ?? '—',
       ppg: pl.pts_per_game,
-      drafted: draftedPlayerIds.has(pl.id),
     }));
   }, [playerPool, draftedPlayerIds]);
 
@@ -226,9 +226,7 @@ export default function AdminPage() {
       headerName: 'Draft',
       sortable: false,
       cellRenderer: (params) => {
-        const drafted = params.data?.drafted;
         const id = params.data?.id;
-        if (drafted) return 'Drafted';
         return (
           <button
             type="button"
@@ -311,7 +309,6 @@ export default function AdminPage() {
                     columnDefs={adminColumnDefs}
                     defaultColDef={{ sortable: true }}
                     getRowId={(params) => String(params.data.id)}
-                    getRowClass={(params) => (params.data?.drafted ? 'draft-row-drafted' : '')}
                     suppressColumnMenu
                     onGridReady={(e) => e.api.sizeColumnsToFit()}
                     onFirstDataRendered={(e) => e.api.sizeColumnsToFit()}

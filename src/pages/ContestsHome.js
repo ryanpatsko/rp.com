@@ -34,12 +34,41 @@ export default function ContestsHome() {
       </header>
       <main className="contests-main">
         <Link to={`/contests/pp/${CURRENT_CONTEST_ID}`} className="contests-card">
-          <h2>March Madness Player Pool</h2>
+          <h2>
+            <span className="contests-card-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="cardIconGradBball" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#4facfe" />
+                    <stop offset="100%" stopColor="#00f2fe" />
+                  </linearGradient>
+                </defs>
+                <circle cx="12" cy="12" r="10" stroke="url(#cardIconGradBball)" strokeWidth="1.5" fill="none" />
+                <path d="M6 5 Q14 12 6 19" stroke="url(#cardIconGradBball)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M18 5 Q10 12 18 19" stroke="url(#cardIconGradBball)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              </svg>
+            </span>
+            {' '}2026 March Madness Player Pool
+          </h2>
           <p>Draft board and team lineups for the 2026 contest.</p>
         </Link>
 
         <div className="contests-card contests-admin-card">
-          <h2>Contest admin</h2>
+          <h2>
+            <span className="contests-card-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="cardIconGradLock" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#4facfe" />
+                    <stop offset="100%" stopColor="#00f2fe" />
+                  </linearGradient>
+                </defs>
+                <rect x="5" y="11" width="14" height="10" rx="2" ry="2" stroke="url(#cardIconGradLock)" strokeWidth="1.5" fill="none" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="url(#cardIconGradLock)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+              </svg>
+            </span>
+            {' '}Contest Admin
+          </h2>
           <p>Password required to manage the contest (import players, enter draft picks).</p>
           <form onSubmit={handleAdminSubmit} className="contests-admin-form">
             <input
