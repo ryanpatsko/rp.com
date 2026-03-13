@@ -11,6 +11,12 @@ import './Contests.css';
 const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard' };
 const NUM_ROUNDS = 6;
 
+function getNextManagerIndex(pickNumber1Based, numTeams = 8) {
+  const round = Math.floor((pickNumber1Based - 1) / numTeams);
+  const pickInRound = (pickNumber1Based - 1) % numTeams;
+  return round % 2 === 0 ? pickInRound : numTeams - 1 - pickInRound;
+}
+
 const DRAFT_GRID_HEIGHT = '60vh';
 const formatOneDecimal = (params) => {
   const v = params.value;
@@ -167,6 +173,16 @@ export default function ContestPage() {
   const getPlayerById = (id) => playerPool.find((p) => p.id === id);
 
   const numTeams = managers?.length || 8;
+  const nextPickNumber = (draft?.length ?? 0) + 1;
+  const nextManagerIndex = getNextManagerIndex(nextPickNumber, numTeams);
+  const nextRound = Math.floor((nextPickNumber - 1) / numTeams) + 1;
+  const nextPickInRound = (nextPickNumber - 1) % numTeams + 1;
+  const currentPickLabel = managers?.length
+    ? (nextPickNumber <= numTeams * 8
+      ? `Current pick: ${managers[nextManagerIndex] ?? `Manager ${nextManagerIndex + 1}`} (${nextRound}.${nextPickInRound})`
+      : 'Draft complete')
+    : null;
+
   const pickHistoryList = useMemo(() => {
     const list = (draft || []).map((pick, i) => {
       const pickNum = i + 1;
@@ -179,8 +195,7 @@ export default function ContestPage() {
       const position = player?.position || '—';
       const region = player?.region ?? '—';
       const seed = player?.seed ?? '—';
-      const ppg = player?.pts_per_game != null ? Number(player.pts_per_game).toFixed(1) : '—';
-      const playerMeta = `${team} · ${position} · ${region} · ${seed} · ${ppg} PPG`;
+      const playerMeta = `${team} · ${position} · ${region} · ${seed}`;
       return {
         key: i,
         label: `${round}.${pickInRound}`,
@@ -289,6 +304,11 @@ export default function ContestPage() {
             <p className="contests-loading">No players yet. Run “Import players from BallDontLie” to load the pool.</p>
           ) : (
             <>
+              {currentPickLabel && (
+                <div className="draft-current-pick-alert" role="status">
+                  {currentPickLabel}
+                </div>
+              )}
               <div className="draft-board-filters">
                 <select
                   value={filterTeam}
@@ -334,26 +354,29 @@ export default function ContestPage() {
                   Hide drafted players
                 </label>
               </div>
-              <AgGridProvider modules={[AllCommunityModule]}>
-                <div className="ag-theme-quartz-dark draft-board-grid" style={{ height: DRAFT_GRID_HEIGHT, width: '100%' }}>
-                  <AgGridReact
-                    key={isMobile ? 'mobile' : 'desktop'}
-                    rowData={draftBoardRows}
-                    columnDefs={isMobile ? DRAFT_COLUMN_DEFS_MOBILE : DRAFT_COLUMN_DEFS}
-                    defaultColDef={{ sortable: true }}
-                    rowHeight={isMobile ? 52 : 42}
-                    headerHeight={42}
-                    initialState={{ sort: { sortModel: [{ colId: 'ppg', sort: 'desc' }] } }}
-                    getRowId={(params) => String(params.data.id)}
-                    getRowClass={(params) => (params.data?._drafted ? 'draft-row-drafted' : '')}
-                    suppressColumnMenu
-                    onGridReady={(e) => { if (!isMobile) e.api.sizeColumnsToFit(); }}
-                    onFirstDataRendered={(e) => { if (!isMobile) e.api.sizeColumnsToFit(); }}
-                  />
+              <div className="draft-board-layout">
+                <div className="draft-board-grid-col">
+                  <AgGridProvider modules={[AllCommunityModule]}>
+                    <div className="ag-theme-quartz-dark draft-board-grid" style={{ height: DRAFT_GRID_HEIGHT, width: '100%' }}>
+                      <AgGridReact
+                        key={isMobile ? 'mobile' : 'desktop'}
+                        rowData={draftBoardRows}
+                        columnDefs={isMobile ? DRAFT_COLUMN_DEFS_MOBILE : DRAFT_COLUMN_DEFS}
+                        defaultColDef={{ sortable: true }}
+                        rowHeight={isMobile ? 52 : 42}
+                        headerHeight={42}
+                        initialState={{ sort: { sortModel: [{ colId: 'ppg', sort: 'desc' }] } }}
+                        getRowId={(params) => String(params.data.id)}
+                        getRowClass={(params) => (params.data?._drafted ? 'draft-row-drafted' : '')}
+                        suppressColumnMenu
+                        onGridReady={(e) => { if (!isMobile) e.api.sizeColumnsToFit(); }}
+                        onFirstDataRendered={(e) => { if (!isMobile) e.api.sizeColumnsToFit(); }}
+                      />
+                    </div>
+                  </AgGridProvider>
                 </div>
-              </AgGridProvider>
-
-              <div className="admin-pick-history">
+                <div className="draft-board-pick-history-col">
+                  <div className="admin-pick-history">
                 <div className="admin-pick-history-header">
                   <h3>Players drafted</h3>
                 </div>
@@ -375,6 +398,8 @@ export default function ContestPage() {
                     ))
                   )}
                 </ul>
+                  </div>
+                </div>
               </div>
             </>
           )}

@@ -212,16 +212,72 @@
 }
 
 /* Draft board */
+.draft-current-pick-alert {
+  text-align: center;
+  margin: 0 auto 1rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  background: linear-gradient(90deg, #ff6b35 0%, #f7931e 100%);
+  color: #0a0a0a;
+  max-width: max-content;
+}
+
 .draft-board-wrap {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.draft-board-wrap .admin-pick-history {
-  width: 100%;
-  max-width: 100%;
-  margin-top: 1.5rem;
+.draft-board-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .draft-board-layout {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+  .draft-board-grid-col {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+  .draft-board-pick-history-col {
+    flex: 0 0 320px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .draft-board-pick-history-col .admin-pick-history {
+    margin-top: 0;
+    width: 320px;
+    max-width: 320px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .draft-board-pick-history-col .admin-pick-history-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .draft-board-pick-history-col {
+    margin-top: 1.5rem;
+  }
+  .draft-board-pick-history-col .admin-pick-history {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .draft-board-filters {
