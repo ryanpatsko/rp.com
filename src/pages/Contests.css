@@ -178,6 +178,9 @@
   gap: 0.5rem;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid rgba(79, 172, 254, 0.2);
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .contests-tabs button {
@@ -228,6 +231,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .draft-board-layout {
@@ -538,6 +544,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .team-card {
@@ -586,6 +595,8 @@
   gap: 1.5rem;
   align-items: flex-start;
   max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .leaderboard-table-col {

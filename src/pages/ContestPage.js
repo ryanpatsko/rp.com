@@ -120,9 +120,12 @@ export default function ContestPage() {
 
   useEffect(() => {
     if (tab !== TABS.draft) return;
+    const numTeams = (config?.draftOrder?.length || config?.manager_names?.length || config?.managerNames?.length) || 8;
+    const picksCount = (draft ?? []).length;
+    if (picksCount >= numTeams * 8) return; // draft complete: no auto-refresh
     const interval = setInterval(load, 10 * 1000);
     return () => clearInterval(interval);
-  }, [tab, load]);
+  }, [tab, load, config?.draftOrder?.length, config?.manager_names?.length, config?.managerNames?.length, (draft ?? []).length]);
 
   const [filterTeam, setFilterTeam] = useState('');
   const [filterRegion, setFilterRegion] = useState('');
