@@ -24,6 +24,18 @@ export async function getPlayerPool(contestId) {
   return res.json();
 }
 
+export async function getScores(contestId) {
+  const res = await fetch(`${apiBase}/contests/${contestId}/scores`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function refreshScores(contestId) {
+  const res = await fetch(`${apiBase}/contests/${contestId}/refresh-scores`, { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function putDraft(contestId, draft) {
   const res = await fetch(`${apiBase}/contests/${contestId}/draft`, {
     method: 'PUT',

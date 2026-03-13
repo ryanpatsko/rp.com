@@ -1,0 +1,12 @@
+[
+  {
+    "source": "/<*>",
+    "status": "404-200",
+    "target": "/index.html"
+  },
+  {
+    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|ttf|map|json|xml|webmanifest)$)([^.]+$)/>",
+    "status": "200",
+    "target": "/index.html"
+  }
+]

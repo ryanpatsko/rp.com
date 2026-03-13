@@ -26,12 +26,20 @@ const formatOneDecimal = (params) => {
 
 const rightAlign = { cellStyle: { textAlign: 'right' }, headerClass: 'draft-col-right', cellClass: 'draft-col-right' };
 
+const seedComparator = (a, b) => {
+  const na = Number(a);
+  const nb = Number(b);
+  if (Number.isNaN(na)) return Number.isNaN(nb) ? 0 : 1;
+  if (Number.isNaN(nb)) return -1;
+  return na - nb;
+};
+
 const DRAFT_COLUMN_DEFS = [
   { field: 'name', headerName: 'Name', sortable: true, minWidth: 165 },
   { field: 'team', headerName: 'Team', sortable: true },
   { field: 'position', headerName: 'Pos', sortable: true },
   { field: 'region', headerName: 'Region', sortable: true },
-  { field: 'seed', headerName: 'Seed', sortable: true },
+  { field: 'seed', headerName: 'Seed', sortable: true, comparator: seedComparator },
   { field: 'ppg', headerName: 'PPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'gs', headerName: 'GS', sortable: true, ...rightAlign },
   { field: 'mpg', headerName: 'MPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
@@ -71,6 +79,7 @@ export default function ContestPage() {
   const [config, setConfig] = useState(null);
   const [draft, setDraft] = useState([]);
   const [playerPool, setPlayerPool] = useState([]);
+  const [scores, setScores] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT_PX);
@@ -88,14 +97,16 @@ export default function ContestPage() {
     setLoading(true);
     setError(null);
     try {
-      const [c, d, p] = await Promise.all([
+      const [c, d, p, scoresRes] = await Promise.all([
         contestApi.getConfig(contestId),
         contestApi.getDraft(contestId),
         contestApi.getPlayerPool(contestId),
+        contestApi.getScores(contestId).catch(() => ({ scores: {} })),
       ]);
       setConfig(c);
       setDraft(Array.isArray(d) ? d : []);
       setPlayerPool(Array.isArray(p) ? p : []);
+      setScores(scoresRes?.scores ?? {});
     } catch (e) {
       setError(e.message);
     } finally {
@@ -136,7 +147,8 @@ export default function ContestPage() {
       if (filterSeed && String(pl.seed ?? '') !== filterSeed) return false;
       return true;
     });
-    const sorted = [...filtered].sort((a, b) => (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
+    const seedNum = (v) => { const n = Number(v); return Number.isNaN(n) ? 99 : n; };
+    const sorted = [...filtered].sort((a, b) => seedNum(a.seed) - seedNum(b.seed) || (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
     return sorted.map((pl) => {
       const region = pl.region ?? '—';
       const seed = pl.seed ?? '—';
@@ -214,21 +226,26 @@ export default function ContestPage() {
       acc[i].push(p);
       return acc;
     }, {});
-    return (managers || []).map((name, idx) => {
+    const playerTotal = (playerId) => {
+      const byRound = scores[String(playerId)];
+      if (!byRound || typeof byRound !== 'object') return 0;
+      return [1, 2, 3, 4, 5, 6].reduce((sum, r) => sum + (Number(byRound[String(r)]) || 0), 0);
+    };
+    const rows = (managers || []).map((name, idx) => {
       const picks = byManager[idx] || [];
       const playerCount = picks.length;
-      // Max games = potential player-games remaining (8 players × 6 rounds each).
-      // Later: reduce per player when they're eliminated (e.g. lose in round 1 → 0 more games).
+      const points = picks.reduce((sum, p) => sum + playerTotal(p.playerId ?? p.player_id), 0);
       const maxGames = playerCount * NUM_ROUNDS;
       return {
         managerIndex: idx,
         name,
-        points: 0,
+        points,
         players: playerCount,
         maxGames,
       };
     });
-  }, [managers, draft]);
+    return [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+  }, [managers, draft, scores]);
 
   useEffect(() => {
     if (tab === TABS.leaderboard && managers?.length > 0) {
@@ -365,7 +382,7 @@ export default function ContestPage() {
                         defaultColDef={{ sortable: true }}
                         rowHeight={isMobile ? 52 : 42}
                         headerHeight={42}
-                        initialState={{ sort: { sortModel: [{ colId: 'ppg', sort: 'desc' }] } }}
+                        initialState={{ sort: { sortModel: [{ colId: 'seed', sort: 'asc' }, { colId: 'ppg', sort: 'desc' }] } }}
                         getRowId={(params) => String(params.data.id)}
                         getRowClass={(params) => (params.data?._drafted ? 'draft-row-drafted' : '')}
                         suppressColumnMenu
@@ -424,7 +441,7 @@ export default function ContestPage() {
                       <li key={pl.id}>
                         <span className="player-name">{pl.name}</span>
                         <span className="player-meta">
-                          {pl.team_abbreviation || pl.team_name} · {pl.position || '—'}
+                          {pl.position || '—'} — {pl.team_abbreviation || pl.team_name} ({pl.seed ?? '—'})
                         </span>
                       </li>
                     ))
@@ -488,30 +505,41 @@ export default function ContestPage() {
                         <td colSpan={NUM_ROUNDS + 2} className="leaderboard-empty">No players yet</td>
                       </tr>
                     ) : (
-                      selectedRosterPlayers.map((pl) => (
-                        <tr key={pl.id}>
-                          <td className="leaderboard-player-name">
-                            {pl.name}
-                            <span className="leaderboard-player-meta">
-                              {pl.team_abbreviation || pl.team_name} · {pl.position || '—'}
-                            </span>
-                          </td>
-                          {[1, 2, 3, 4, 5, 6].map((r) => (
-                            <td key={r} className="leaderboard-round-num" />
+                      selectedRosterPlayers.map((pl) => {
+                        const byRound = scores[String(pl.id)] || {};
+                        const roundPts = [1, 2, 3, 4, 5, 6].map((r) => Number(byRound[String(r)]) || 0);
+                        const total = roundPts.reduce((s, n) => s + n, 0);
+                        return (
+                          <tr key={pl.id}>
+                            <td className="leaderboard-player-name">
+                              {pl.name}
+                              <span className="leaderboard-player-meta">
+                                {pl.team_abbreviation || pl.team_name} · {pl.position || '—'}
+                              </span>
+                            </td>
+                            {roundPts.map((pts, i) => (
+                              <td key={i} className="leaderboard-round-num">{pts || ''}</td>
+                            ))}
+                            <td className="leaderboard-total-col">{total || ''}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                    {selectedRosterPlayers.length > 0 && (() => {
+                      const roundSums = [1, 2, 3, 4, 5, 6].map((r) =>
+                        selectedRosterPlayers.reduce((s, pl) => s + (Number((scores[String(pl.id)] || {})[String(r)]) || 0), 0)
+                      );
+                      const rosterTotal = roundSums.reduce((a, b) => a + b, 0);
+                      return (
+                        <tr className="leaderboard-totals-row">
+                          <td>Total</td>
+                          {roundSums.map((n, i) => (
+                            <td key={i} className="leaderboard-round-num">{n || ''}</td>
                           ))}
-                          <td className="leaderboard-total-col" />
+                          <td className="leaderboard-total-col">{rosterTotal || ''}</td>
                         </tr>
-                      ))
-                    )}
-                    {selectedRosterPlayers.length > 0 && (
-                      <tr className="leaderboard-totals-row">
-                        <td />
-                        {[1, 2, 3, 4, 5, 6].map((r) => (
-                          <td key={r} className="leaderboard-round-num" />
-                        ))}
-                        <td className="leaderboard-total-col" />
-                      </tr>
-                    )}
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>

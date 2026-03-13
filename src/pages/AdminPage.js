@@ -38,6 +38,7 @@ export default function AdminPage() {
   const [draftingPlayerId, setDraftingPlayerId] = useState(null);
   const [deletingLastPick, setDeletingLastPick] = useState(false);
   const [resettingDraft, setResettingDraft] = useState(false);
+  const [refreshingScores, setRefreshingScores] = useState(false);
   const [error, setError] = useState(null);
   const selectedManagerIndexRef = useRef(0);
 
@@ -122,6 +123,18 @@ export default function AdminPage() {
     }
   };
 
+  const runRefreshScores = async () => {
+    setError(null);
+    setRefreshingScores(true);
+    try {
+      await contestApi.refreshScores(contestId);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRefreshingScores(false);
+    }
+  };
+
   const handleDraftPlayer = async (playerId) => {
     const managerIndex = selectedManagerIndexRef.current;
     setError(null);
@@ -202,7 +215,8 @@ export default function AdminPage() {
   const adminGridRows = useMemo(() => {
     const withPpg = (playerPool || []).filter((pl) => pl.pts_per_game != null);
     const available = withPpg.filter((pl) => !draftedPlayerIds.has(pl.id));
-    const sorted = [...available].sort((a, b) => (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
+    const seedNum = (v) => { const n = Number(v); return Number.isNaN(n) ? 99 : n; };
+    const sorted = [...available].sort((a, b) => seedNum(a.seed) - seedNum(b.seed) || (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
     return sorted.map((pl) => ({
       id: pl.id,
       name: pl.name,
@@ -262,6 +276,9 @@ export default function AdminPage() {
       <div className="import-actions">
         <button type="button" onClick={runImport} disabled={importing}>
           {importing ? 'Importing…' : 'Import players from BallDontLie'}
+        </button>
+        <button type="button" onClick={runRefreshScores} disabled={refreshingScores} className="admin-refresh-scores-btn">
+          {refreshingScores ? 'Refreshing scores…' : 'Refresh scores (tournament live)'}
         </button>
         {!hasDraftOrder && (
           <button type="button" onClick={runInitDraftOrder} disabled={initializingDraft} className="admin-init-draft-btn">

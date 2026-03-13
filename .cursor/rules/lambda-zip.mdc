@@ -1,0 +1,20 @@
+---
+description: After API changes, zip Lambda for deployment
+globs: api/**/*
+alwaysApply: false
+---
+
+# Lambda deployment zip
+
+When you change any file under `api/` (especially `api/index.js`), **always** create the Lambda deployment zip so the user can upload it without running the command themselves.
+
+**Command** (run from repo root or from `api/`):
+
+- **PowerShell:** From `api/` directory:
+  `Set-Location api; Compress-Archive -Path index.js,node_modules -DestinationPath ..\contest-api.zip -Force`
+- Or from repo root:
+  `Set-Location c:\Users\ryanp\Desktop\code\rp.com\api; Compress-Archive -Path index.js,node_modules -DestinationPath ..\contest-api.zip -Force`
+
+**Output:** `contest-api.zip` in the repo root (`rp.com/contest-api.zip`).
+
+Run this at the end of your response whenever you have edited API code, and tell the user the zip is ready to upload to the Lambda console.

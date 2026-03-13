@@ -16,9 +16,9 @@ For each of these, click **Create route** and fill in:
 
 | Method | Route path      | Purpose                          |
 |--------|-----------------|-----------------------------------|
-| `GET`  | `/contests/{proxy+}` | Read config, draft, player-pool   |
+| `GET`  | `/contests/{proxy+}` | Read config, draft, player-pool, **scores** |
 | `PUT`  | `/contests/{proxy+}` | Update draft                      |
-| `POST` | `/contests/{proxy+}` | Run import                        |
+| `POST` | `/contests/{proxy+}` | Run import, **refresh-scores**    |
 
 - **Method**: choose GET, then create the route. Repeat for PUT, then POST.
 - **Path**: type exactly `/contests/{proxy+}` (the `{proxy+}` part is a “greedy” path variable that matches the rest of the URL).
@@ -83,3 +83,5 @@ You should get JSON with `contestId`, `numTeams`, `playersPerTeam`, and `manager
 - [ ] CORS configured: Allow-Origin `*` (or `http://localhost:3000`), methods GET, PUT, POST, **OPTIONS**, headers `content-type, authorization`.
 - [ ] Lambda env vars: `CONTEST_BUCKET=rp-contest-data`, `BALLDONTLIE_API_KEY=your-key`.
 - [ ] S3 bucket `rp-contest-data` has object `contests/2026-1/config.json`.
+
+**Scores:** You do **not** need a new route. `GET /contests/2026-1/scores` and `POST /contests/2026-1/refresh-scores` are already handled by the same `GET` and `POST /contests/{proxy+}` routes.
