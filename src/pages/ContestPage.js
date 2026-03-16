@@ -161,7 +161,7 @@ const DRAFT_COLUMN_DEFS = [
   },
   { field: 'ppg', headerName: 'PPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'gs', headerName: 'GS', sortable: true, ...rightAlign },
-  { field: 'mpg', headerName: 'MPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
+  { field: 'mpg', headerName: 'Min', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
 
 const DRAFT_COLUMN_DEFS_MOBILE = [
@@ -169,7 +169,7 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
     field: 'name',
     headerName: 'Player',
     sortable: true,
-    minWidth: 160,
+    minWidth: 120,
     flex: 1,
     cellRenderer: (params) => {
       const d = params.data;
@@ -189,7 +189,7 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
   },
   {
     field: 'seed',
-    headerName: 'Seed',
+    headerName: 'Sd',
     sortable: true,
     comparator: seedComparator,
     valueGetter: (params) => {
@@ -199,13 +199,13 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
       return Number.isNaN(n) ? null : n;
     },
     valueFormatter: (params) => params.value != null ? String(params.value) : '—',
-    width: 100,
-    minWidth: 100,
+    width: 54,
+    minWidth: 54,
     ...centerAlign,
   },
-  { field: 'ppg', headerName: 'PPG', sortable: true, width: 100, minWidth: 100, valueFormatter: formatOneDecimal, ...rightAlign },
-  { field: 'gs', headerName: 'GS', sortable: true, width: 54, ...rightAlign },
-  { field: 'mpg', headerName: 'MPG', sortable: true, width: 80, minWidth: 80, valueFormatter: formatOneDecimal, ...rightAlign },
+  { field: 'ppg', headerName: 'PPG', sortable: true, width: 68, minWidth: 68, valueFormatter: formatOneDecimal, ...rightAlign },
+  { field: 'gs', headerName: 'GS', sortable: true, width: 44, minWidth: 44, ...rightAlign },
+  { field: 'mpg', headerName: 'Min', sortable: true, width: 60, minWidth: 60, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
 
 const MOBILE_BREAKPOINT_PX = 768;

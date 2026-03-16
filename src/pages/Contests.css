@@ -623,9 +623,11 @@
   text-align: center;
 }
 
-/* Hide sort order numbers (1, 2) in multi-sort headers */
+/* Hide sort order numbers (1, 2) and sort arrows in headers */
 .draft-board-grid .ag-header-cell .ag-sort-order,
-.draft-board-grid .ag-header-cell-label .ag-header-icon.ag-sort-order {
+.draft-board-grid .ag-header-cell-label .ag-header-icon.ag-sort-order,
+.draft-board-grid .ag-header-cell .ag-icon-asc,
+.draft-board-grid .ag-header-cell .ag-icon-desc {
   display: none !important;
 }
 
@@ -1240,7 +1242,9 @@
 }
 
 .admin-draft-grid .ag-header-cell .ag-sort-order,
-.admin-draft-grid .ag-header-cell-label .ag-header-icon.ag-sort-order {
+.admin-draft-grid .ag-header-cell-label .ag-header-icon.ag-sort-order,
+.admin-draft-grid .ag-header-cell .ag-icon-asc,
+.admin-draft-grid .ag-header-cell .ag-icon-desc {
   display: none !important;
 }
 
