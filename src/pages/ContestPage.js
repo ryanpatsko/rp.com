@@ -398,7 +398,7 @@ export default function ContestPage() {
   }, [load]);
 
   useEffect(() => {
-    if (tab !== TABS.draft) return;
+    if (tab !== TABS.draft && tab !== TABS.teams) return;
     const numTeams = (config?.draftOrder?.length || config?.manager_names?.length || config?.managerNames?.length) || 8;
     const picksCount = (draft ?? []).length;
     if (picksCount >= numTeams * 8) return; // draft complete: no auto-refresh
@@ -702,7 +702,7 @@ export default function ContestPage() {
                         defaultColDef={{ sortable: true }}
                         rowHeight={isMobile ? 52 : 42}
                         headerHeight={42}
-                        initialState={{ sort: { sortModel: [{ colId: 'seed', sort: 'asc' }, { colId: 'ppg', sort: 'desc' }] } }}
+                        initialState={{ sort: { sortModel: [{ colId: 'rank', sort: 'desc' }] } }}
                         getRowId={(params) => String(params.data.id)}
                         getRowClass={(params) => (params.data?._drafted ? 'draft-row-drafted' : '')}
                         suppressColumnMenu
