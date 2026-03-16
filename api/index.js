@@ -168,14 +168,14 @@ async function fetchBracket(apiKey, season = BRACKET_SEASON, roundId = null) {
 }
 
 /**
- * Fetches all round-1 bracket games, following cursor if the API paginates. Use for import.
+ * Fetches full bracket (all rounds) with cursor pagination. Use when round_id filter returns partial play-in data.
  */
-async function fetchBracketRound1All(apiKey, season = BRACKET_SEASON) {
+async function fetchBracketAll(apiKey, season = BRACKET_SEASON) {
   const allGames = [];
   let cursor = undefined;
   let page = 0;
   do {
-    const params = { season, round_id: 1 };
+    const params = { season };
     if (cursor != null) params.cursor = cursor;
     const data = await bdlFetch(apiKey, '/bracket', params);
     const list = data.data ?? data.games ?? [];
@@ -183,17 +183,28 @@ async function fetchBracketRound1All(apiKey, season = BRACKET_SEASON) {
     allGames.push(...games);
     cursor = data.meta?.next_cursor ?? null;
     page++;
-    console.log('Bracket round 1 page', page, 'games so far:', allGames.length);
+    console.log('Bracket full page', page, 'games so far:', allGames.length);
     if (cursor) await new Promise((r) => setTimeout(r, 150));
   } while (cursor);
-  return { data: allGames };
+  return allGames;
+}
+
+/**
+ * Fetches bracket and returns only round 0 (play-in) and round 1 games for import. Fetches full bracket
+ * so all four First Four matchups are included (API may only return one when filtering by round_id=0).
+ */
+async function fetchBracketRound0And1All(apiKey, season = BRACKET_SEASON) {
+  const allGames = await fetchBracketAll(apiKey, season);
+  const round0And1 = allGames.filter((g) => Number(g.round) === 0 || Number(g.round) === 1);
+  console.log('Bracket filtered to round 0+1:', round0And1.length, 'of', allGames.length);
+  return { data: round0And1 };
 }
 
 /**
  * From bracket API response, parses round 1 games and returns team IDs, team info map,
  * and per-team seed / bracket_location. Uses the documented shape: home_team, away_team
  * (each with id, full_name, college, abbreviation, seed); bracket_location on the game.
- * Only includes games with round === 1 (per API: game has "round", home_team/away_team with id, full_name, college, abbreviation, seed). Blank round excluded.
+ * Includes round === 1 and round === 0 (play-in / First Four). Seed on play-in games is the seed we save.
  */
 function parseBracketRound1(bracketResponse) {
   let games = bracketResponse.data ?? bracketResponse.games ?? [];
@@ -207,18 +218,19 @@ function parseBracketRound1(bracketResponse) {
     console.log('Bracket response sample:', JSON.stringify(bracketResponse).slice(0, 800));
     games = [];
   }
-  const round1 = games.filter((g) => Number(g.round) === 1);
-  if (round1.length === 0 && games.length > 0) {
+  const round0And1 = games.filter((g) => Number(g.round) === 0 || Number(g.round) === 1);
+  const round0Count = games.filter((g) => Number(g.round) === 0).length;
+  if (round0And1.length === 0 && games.length > 0) {
     const first = games[0];
     console.log('First game keys:', first ? Object.keys(first) : 'n/a', 'round:', first?.round);
   }
-  console.log('Bracket games total:', games.length, 'round 1:', round1.length);
+  console.log('Bracket games total:', games.length, 'round 0 (play-in):', round0Count, 'round 0+1:', round0And1.length);
   const teamMap = {};
   const teamIdToSeed = {};
   const teamIdToBracketLocation = {};
   const teamIds = new Set();
 
-  for (const g of round1) {
+  for (const g of round0And1) {
     const home = g.home_team;
     const away = g.away_team;
     const gameLoc = g.bracket_location;
@@ -349,8 +361,8 @@ async function runImport(bucket, contestId, apiKey) {
   let season = BRACKET_SEASON;
   console.log('Import started', { contestId, season });
   try {
-    // Fetch all round-1 games (paginating if needed) so we get all 32 games / 64 teams.
-    const bracketRes = await fetchBracketRound1All(apiKey, season);
+    // Fetch round 0 (play-in) and round 1 so we get First Four + 32 games / all teams.
+    const bracketRes = await fetchBracketRound0And1All(apiKey, season);
     const { teamIds: bracketTeamIds, teamMap, teamIdToSeed, teamIdToBracketLocation } = parseBracketRound1(bracketRes);
     if (!bracketTeamIds.length) {
       throw new Error('No round 1 teams found in bracket response');

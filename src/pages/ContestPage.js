@@ -588,31 +588,70 @@ export default function ContestPage() {
             const players = picks
               .map((p) => getPlayerById(p.playerId))
               .filter(Boolean);
+            const regionCounts = { East: 0, South: 0, West: 0, Midwest: 0 };
+            const normRegion = (s) => (s || '').trim().toLowerCase();
+            players.forEach((pl) => {
+              const r = normRegion(pl.region);
+              if (r === 'east') regionCounts.East++;
+              else if (r === 'south') regionCounts.South++;
+              else if (r === 'west') regionCounts.West++;
+              else if (r === 'midwest') regionCounts.Midwest++;
+            });
             return (
               <div key={idx} className="team-card">
-                <h3>{name}</h3>
-                <ul>
-                  {players.length === 0 ? (
-                    <li className="player-meta">No picks yet</li>
-                  ) : (
-                    players.map((pl) => (
-                      <li key={pl.id}>
-                        <span className="player-name">{pl.name}</span>
-                        <span className="player-meta">
-                          {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
-                          {pl.region && pl.region !== '—' ? (
-                            <>
-                              {' '}
-                              <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
-                                {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
-                              </span>
-                            </>
-                          ) : null}
-                        </span>
-                      </li>
-                    ))
-                  )}
-                </ul>
+                <h3 className="team-card-title">{name}</h3>
+                <div className="team-card-inner">
+                  <div className="team-card-roster">
+                    <ul>
+                      {players.length === 0 ? (
+                        <li className="player-meta">No picks yet</li>
+                      ) : (
+                        players.map((pl) => (
+                          <li key={pl.id}>
+                            <span className="player-name">{pl.name}</span>
+                            <span className="player-meta">
+                              {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
+                              {pl.region && pl.region !== '—' ? (
+                                <>
+                                  {' '}
+                                  <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
+                                    {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
+                                  </span>
+                                </>
+                              ) : null}
+                            </span>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                  <div className="team-card-bracket-wrap">
+                  <div className="team-card-bracket">
+                    <div className="team-bracket-graphic">
+                      <div className="team-bracket-left">
+                        <div className={`team-bracket-quadrant team-bracket-quadrant--east`}>
+                          <span className="team-bracket-label">East</span>
+                          <span className="team-bracket-count">{regionCounts.East}</span>
+                        </div>
+                        <div className={`team-bracket-quadrant team-bracket-quadrant--south`}>
+                          <span className="team-bracket-label">South</span>
+                          <span className="team-bracket-count">{regionCounts.South}</span>
+                        </div>
+                      </div>
+                      <div className="team-bracket-right">
+                        <div className={`team-bracket-quadrant team-bracket-quadrant--west`}>
+                          <span className="team-bracket-label">West</span>
+                          <span className="team-bracket-count">{regionCounts.West}</span>
+                        </div>
+                        <div className={`team-bracket-quadrant team-bracket-quadrant--midwest`}>
+                          <span className="team-bracket-label">Midwest</span>
+                          <span className="team-bracket-count">{regionCounts.Midwest}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+                </div>
               </div>
             );
           })}
