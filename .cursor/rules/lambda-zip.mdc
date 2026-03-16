@@ -1,7 +1,7 @@
 ---
 description: After API changes, zip Lambda for deployment
 globs: api/**/*
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Lambda deployment zip
@@ -11,9 +11,9 @@ When you change any file under `api/` (especially `api/index.js`), **always** cr
 **Command** (run from repo root or from `api/`):
 
 - **PowerShell:** From `api/` directory:
-  `Set-Location api; Compress-Archive -Path index.js,node_modules -DestinationPath ..\contest-api.zip -Force`
+  `Set-Location api; Compress-Archive -Path index.js,bracket-regions.json,node_modules -DestinationPath ..\contest-api.zip -Force`
 - Or from repo root:
-  `Set-Location c:\Users\ryanp\Desktop\code\rp.com\api; Compress-Archive -Path index.js,node_modules -DestinationPath ..\contest-api.zip -Force`
+  `Set-Location c:\Users\ryanp\Desktop\code\rp.com\api; Compress-Archive -Path index.js,bracket-regions.json,node_modules -DestinationPath ..\contest-api.zip -Force`
 
 **Output:** `contest-api.zip` in the repo root (`rp.com/contest-api.zip`).
 

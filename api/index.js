@@ -1,5 +1,15 @@
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
+
+let teamToRegion = {};
+try {
+  const regionsPath = path.join(__dirname, 'bracket-regions.json');
+  teamToRegion = JSON.parse(fs.readFileSync(regionsPath, 'utf8')).teamToRegion || {};
+} catch (e) {
+  console.warn('bracket-regions.json not loaded:', e.message);
+}
 
 const s3 = new S3Client({});
 const ADMIN_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -29,7 +39,7 @@ function verifyAdminToken(token, contestId, secret) {
 }
 
 const BDL_BASE = 'https://api.balldontlie.io/ncaab/v1';
-/** Season used for March Madness bracket import (switch to 2026 when bracket is available). */
+/** Season used for March Madness bracket import. */
 const BRACKET_SEASON = 2025;
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -125,17 +135,24 @@ async function fetchPlayerSeasonStats(apiKey, playerIds, season = 2025) {
   for (let i = 0; i < playerIds.length; i += BATCH) {
     const batch = playerIds.slice(i, i + BATCH);
     try {
-      const data = await bdlFetch(apiKey, '/player_season_stats', {
-        player_ids: batch,
-        season,
-      });
-      const list = (data.data && Array.isArray(data.data)) ? data.data : [];
-      all.push(...list);
+      let cursor = undefined;
+      let page = 0;
+      do {
+        const params = { player_ids: batch, season };
+        if (cursor != null) params.cursor = cursor;
+        const data = await bdlFetch(apiKey, '/player_season_stats', params);
+        const list = (data.data && Array.isArray(data.data)) ? data.data : [];
+        all.push(...list);
+        cursor = data.meta?.next_cursor ?? null;
+        page++;
+        if (cursor) await new Promise((r) => setTimeout(r, 150));
+      } while (cursor);
       if (i + BATCH < playerIds.length) await new Promise((r) => setTimeout(r, 150));
     } catch (e) {
       console.warn('player_season_stats batch error:', e.message);
     }
   }
+  console.log('Player season stats total:', all.length);
   return all;
 }
 
@@ -151,21 +168,50 @@ async function fetchBracket(apiKey, season = BRACKET_SEASON, roundId = null) {
 }
 
 /**
+ * Fetches all round-1 bracket games, following cursor if the API paginates. Use for import.
+ */
+async function fetchBracketRound1All(apiKey, season = BRACKET_SEASON) {
+  const allGames = [];
+  let cursor = undefined;
+  let page = 0;
+  do {
+    const params = { season, round_id: 1 };
+    if (cursor != null) params.cursor = cursor;
+    const data = await bdlFetch(apiKey, '/bracket', params);
+    const list = data.data ?? data.games ?? [];
+    const games = Array.isArray(list) ? list : (list.games && Array.isArray(list.games) ? list.games : []);
+    allGames.push(...games);
+    cursor = data.meta?.next_cursor ?? null;
+    page++;
+    console.log('Bracket round 1 page', page, 'games so far:', allGames.length);
+    if (cursor) await new Promise((r) => setTimeout(r, 150));
+  } while (cursor);
+  return { data: allGames };
+}
+
+/**
  * From bracket API response, parses round 1 games and returns team IDs, team info map,
  * and per-team seed / bracket_location. Uses the documented shape: home_team, away_team
  * (each with id, full_name, college, abbreviation, seed); bracket_location on the game.
+ * Only includes games with round === 1 (per API: game has "round", home_team/away_team with id, full_name, college, abbreviation, seed). Blank round excluded.
  */
 function parseBracketRound1(bracketResponse) {
   let games = bracketResponse.data ?? bracketResponse.games ?? [];
-  if (!Array.isArray(games) && games && typeof games === 'object' && Array.isArray(games.games)) {
-    games = games.games;
+  if (!Array.isArray(games) && games && typeof games === 'object') {
+    if (Array.isArray(games.games)) games = games.games;
+    else if (Array.isArray(games[1])) games = games[1];
+    else if (Array.isArray(bracketResponse.rounds?.[1])) games = bracketResponse.rounds[1];
   }
   if (!Array.isArray(games)) {
     console.log('Bracket response keys:', bracketResponse ? Object.keys(bracketResponse) : 'null');
-    console.log('Bracket response sample:', JSON.stringify(bracketResponse).slice(0, 500));
+    console.log('Bracket response sample:', JSON.stringify(bracketResponse).slice(0, 800));
     games = [];
   }
   const round1 = games.filter((g) => Number(g.round) === 1);
+  if (round1.length === 0 && games.length > 0) {
+    const first = games[0];
+    console.log('First game keys:', first ? Object.keys(first) : 'n/a', 'round:', first?.round);
+  }
   console.log('Bracket games total:', games.length, 'round 1:', round1.length);
   const teamMap = {};
   const teamIdToSeed = {};
@@ -278,16 +324,9 @@ async function fetchPlayerStatsForGame(apiKey, gameId) {
  * Fetches bracket with round_id=1 through 6 so we get games for every round.
  */
 async function buildScores(apiKey, season = BRACKET_SEASON) {
-  let resolvedSeason = season;
   const allGames = [];
   for (let roundId = 1; roundId <= 6; roundId++) {
-    let bracketRes = await fetchBracket(apiKey, resolvedSeason, roundId);
-    if (!bracketRes || (!bracketRes.data?.length && !bracketRes.games?.length)) {
-      if (roundId === 1 && resolvedSeason === 2025) {
-        resolvedSeason = 2024;
-        bracketRes = await fetchBracket(apiKey, 2024, 1);
-      }
-    }
+    const bracketRes = await fetchBracket(apiKey, season, roundId);
     const games = parseBracketAllGames(bracketRes, roundId);
     games.forEach((g) => allGames.push(g));
     await new Promise((r) => setTimeout(r, 120));
@@ -308,19 +347,11 @@ async function buildScores(apiKey, season = BRACKET_SEASON) {
 async function runImport(bucket, contestId, apiKey) {
   let step = 'bracket';
   let season = BRACKET_SEASON;
+  console.log('Import started', { contestId, season });
   try {
-    let bracketRes = await fetchBracket(apiKey, season);
-    let { teamIds: bracketTeamIds, teamMap, teamIdToSeed, teamIdToBracketLocation } = parseBracketRound1(bracketRes);
-    if (!bracketTeamIds.length && season === 2025) {
-      console.log('No round 1 for season 2025, trying season 2024');
-      season = 2024;
-      bracketRes = await fetchBracket(apiKey, season);
-      const parsed = parseBracketRound1(bracketRes);
-      bracketTeamIds = parsed.teamIds;
-      Object.assign(teamMap, parsed.teamMap);
-      Object.assign(teamIdToSeed, parsed.teamIdToSeed);
-      Object.assign(teamIdToBracketLocation, parsed.teamIdToBracketLocation);
-    }
+    // Fetch all round-1 games (paginating if needed) so we get all 32 games / 64 teams.
+    const bracketRes = await fetchBracketRound1All(apiKey, season);
+    const { teamIds: bracketTeamIds, teamMap, teamIdToSeed, teamIdToBracketLocation } = parseBracketRound1(bracketRes);
     if (!bracketTeamIds.length) {
       throw new Error('No round 1 teams found in bracket response');
     }
@@ -364,7 +395,12 @@ async function runImport(bucket, contestId, apiKey) {
         team_id: teamId,
         team_name: teamInfo.name || team.full_name || '',
         team_abbreviation: teamInfo.abbreviation || team.abbreviation || '',
-        region: null,
+        region:
+          teamToRegion[teamInfo.name] ||
+          teamToRegion[teamInfo.abbreviation] ||
+          teamToRegion[team?.full_name] ||
+          teamToRegion[team?.college] ||
+          null,
         seed: teamId != null ? (teamIdToSeed[teamId] ?? null) : null,
         bracket_location: teamId != null ? (teamIdToBracketLocation[teamId] ?? null) : null,
         games_played: gamesPlayed,
@@ -381,11 +417,19 @@ async function runImport(bucket, contestId, apiKey) {
       };
     });
 
+    const finalPool = pool.filter((p) => {
+      const ppg = p.pts_per_game;
+      if (ppg == null) return true;
+      return Number(ppg) !== 0;
+    });
+    const skipped = pool.length - finalPool.length;
+    if (skipped) console.log('Skipped players with PPG 0.0:', skipped);
+
     step = 's3_put';
     const key = `contests/${contestId}/player-pool.json`;
-    await putS3Json(bucket, key, pool);
-    console.log('Import done', pool.length, 'players');
-    return { imported: pool.length };
+    await putS3Json(bucket, key, finalPool);
+    console.log('Import done', finalPool.length, 'players');
+    return { imported: finalPool.length };
   } catch (e) {
     console.error('Import failed at step:', step, e);
     throw new Error(`Import failed at ${step}: ${e.message}`);

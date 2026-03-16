@@ -40,6 +40,11 @@ export default function AdminPage() {
   const [resettingDraft, setResettingDraft] = useState(false);
   const [refreshingScores, setRefreshingScores] = useState(false);
   const [error, setError] = useState(null);
+  const [filterTeam, setFilterTeam] = useState('');
+  const [filterRegion, setFilterRegion] = useState('');
+  const [filterSeed, setFilterSeed] = useState('');
+  const [hideDrafted, setHideDrafted] = useState(true);
+  const [hideChumps, setHideChumps] = useState(true);
   const selectedManagerIndexRef = useRef(0);
 
   useEffect(() => {
@@ -166,7 +171,7 @@ export default function AdminPage() {
   };
 
   const resetDraft = async () => {
-    if (!window.confirm('Reset draft? This will clear all picks and remove the draft order. You can run "Initialize draft order" again to start over.')) return;
+    if (!window.confirm('Reset draft? This will clear all picks and remove the draft order. You can run "Set Draft Order" again to start over.')) return;
     setError(null);
     setResettingDraft(true);
     try {
@@ -212,11 +217,26 @@ export default function AdminPage() {
     return [...list].reverse();
   }, [draft, numTeams, draftOrder, playerIdToName]);
 
+  const adminFilterOptions = useMemo(() => {
+    const withPpg = (playerPool || []).filter((pl) => pl.pts_per_game != null);
+    const teams = [...new Set(withPpg.map((pl) => pl.team_abbreviation || pl.team_name || '').filter(Boolean))].sort();
+    const regions = [...new Set(withPpg.map((pl) => pl.region ?? '').filter((r) => r !== ''))].sort();
+    const seeds = [...new Set(withPpg.map((pl) => String(pl.seed ?? '')).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
+    return { teams, regions, seeds };
+  }, [playerPool]);
+
   const adminGridRows = useMemo(() => {
     const withPpg = (playerPool || []).filter((pl) => pl.pts_per_game != null);
-    const available = withPpg.filter((pl) => !draftedPlayerIds.has(pl.id));
+    let filtered = withPpg.filter((pl) => {
+      if (hideDrafted && draftedPlayerIds.has(pl.id)) return false;
+      if (hideChumps && pl.pts_per_game != null && Number(pl.pts_per_game) < 7) return false;
+      if (filterTeam && (pl.team_abbreviation || pl.team_name) !== filterTeam) return false;
+      if (filterRegion && (pl.region ?? '') !== filterRegion) return false;
+      if (filterSeed && String(pl.seed ?? '') !== filterSeed) return false;
+      return true;
+    });
     const seedNum = (v) => { const n = Number(v); return Number.isNaN(n) ? 99 : n; };
-    const sorted = [...available].sort((a, b) => seedNum(a.seed) - seedNum(b.seed) || (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
+    const sorted = [...filtered].sort((a, b) => seedNum(a.seed) - seedNum(b.seed) || (b.pts_per_game ?? 0) - (a.pts_per_game ?? 0));
     return sorted.map((pl) => ({
       id: pl.id,
       name: pl.name,
@@ -226,7 +246,7 @@ export default function AdminPage() {
       seed: pl.seed ?? '—',
       ppg: pl.pts_per_game,
     }));
-  }, [playerPool, draftedPlayerIds]);
+  }, [playerPool, draftedPlayerIds, filterTeam, filterRegion, filterSeed, hideDrafted, hideChumps]);
 
   const adminColumnDefs = useMemo(() => [
     { field: 'name', headerName: 'Name', sortable: true, minWidth: 165 },
@@ -275,14 +295,14 @@ export default function AdminPage() {
 
       <div className="import-actions">
         <button type="button" onClick={runImport} disabled={importing}>
-          {importing ? 'Importing…' : 'Import players from BallDontLie'}
+          {importing ? 'Importing…' : 'Import Players'}
         </button>
         <button type="button" onClick={runRefreshScores} disabled={refreshingScores} className="admin-refresh-scores-btn">
-          {refreshingScores ? 'Refreshing scores…' : 'Refresh scores (tournament live)'}
+          {refreshingScores ? 'Refreshing…' : 'Refresh Scores'}
         </button>
         {!hasDraftOrder && (
           <button type="button" onClick={runInitDraftOrder} disabled={initializingDraft} className="admin-init-draft-btn">
-            {initializingDraft ? 'Initializing…' : 'Initialize draft order (random 1–8)'}
+            {initializingDraft ? 'Setting…' : 'Set Draft Order'}
           </button>
         )}
       </div>
@@ -314,6 +334,62 @@ export default function AdminPage() {
             >
               {resettingDraft ? 'Resetting…' : 'Reset draft'}
             </button>
+          </div>
+
+          <div className="draft-board-filters">
+            <select
+              value={filterTeam}
+              onChange={(e) => setFilterTeam(e.target.value)}
+              className="draft-filter-select"
+              aria-label="Filter by team"
+            >
+              <option value="">All Teams</option>
+              {adminFilterOptions.teams.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select
+              value={filterRegion}
+              onChange={(e) => setFilterRegion(e.target.value)}
+              className="draft-filter-select"
+              aria-label="Filter by region"
+            >
+              <option value="">All Regions</option>
+              {adminFilterOptions.regions.map((r) => (
+                <option key={r} value={r}>{r || '—'}</option>
+              ))}
+            </select>
+            <select
+              value={filterSeed}
+              onChange={(e) => setFilterSeed(e.target.value)}
+              className="draft-filter-select"
+              aria-label="Filter by seed"
+            >
+              <option value="">All Seeds</option>
+              {adminFilterOptions.seeds.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <label className="draft-filter-toggle-label">
+              <input
+                type="checkbox"
+                className="draft-filter-toggle"
+                checked={hideDrafted}
+                onChange={(e) => setHideDrafted(e.target.checked)}
+              />
+              <span className="draft-filter-toggle-slider" />
+              Hide Drafted
+            </label>
+            <label className="draft-filter-toggle-label">
+              <input
+                type="checkbox"
+                className="draft-filter-toggle"
+                checked={hideChumps}
+                onChange={(e) => setHideChumps(e.target.checked)}
+              />
+              <span className="draft-filter-toggle-slider" />
+              Hide Chumps
+            </label>
           </div>
 
           <div className="admin-draft-layout">

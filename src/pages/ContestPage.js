@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import { AllCommunityModule } from 'ag-grid-community';
@@ -10,6 +10,43 @@ import './Contests.css';
 
 const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard' };
 const NUM_ROUNDS = 6;
+
+/**
+ * Bracket-aware max games for a roster. Group by team; when two teams could meet, assume the
+ * team with more rostered players advances. East/South = left side, West/Midwest = right.
+ */
+function getMaxGamesForRoster(players) {
+  if (!players?.length) return 0;
+  const norm = (r) => (r || '').trim().toLowerCase();
+  const teamKey = (p) => p.team_abbreviation || p.team_name || p.team_id || '?';
+  const byTeam = new Map();
+  for (const p of players) {
+    const key = teamKey(p);
+    if (!byTeam.has(key)) byTeam.set(key, { count: 0, region: norm(p.region) });
+    byTeam.get(key).count += 1;
+  }
+  const byRegion = { east: [], south: [], west: [], midwest: [] };
+  for (const { count, region } of byTeam.values()) {
+    if (region === 'east') byRegion.east.push(count);
+    else if (region === 'south') byRegion.south.push(count);
+    else if (region === 'west') byRegion.west.push(count);
+    else if (region === 'midwest') byRegion.midwest.push(count);
+  }
+  const top = (arr, n) => arr.slice(0, n);
+  const sum = (arr) => arr.reduce((s, x) => s + x, 0);
+  for (const r of Object.keys(byRegion)) byRegion[r].sort((a, b) => b - a);
+
+  const r1 = Math.min(8, players.length);
+  const r2 = Math.min(8, players.length);
+  const r3 = Math.min(8, sum(top(byRegion.east, 4)) + sum(top(byRegion.south, 4)) + sum(top(byRegion.west, 4)) + sum(top(byRegion.midwest, 4)));
+  const r4 = sum(top(byRegion.east, 2)) + sum(top(byRegion.south, 2)) + sum(top(byRegion.west, 2)) + sum(top(byRegion.midwest, 2));
+  const r5 = (byRegion.east[0] ?? 0) + (byRegion.south[0] ?? 0) + (byRegion.west[0] ?? 0) + (byRegion.midwest[0] ?? 0);
+  const leftBest = Math.max(0, ...byRegion.east, ...byRegion.south);
+  const rightBest = Math.max(0, ...byRegion.west, ...byRegion.midwest);
+  const r6 = leftBest + rightBest;
+
+  return r1 + r2 + r3 + r4 + r5 + r6;
+}
 
 function getNextManagerIndex(pickNumber1Based, numTeams = 8) {
   const round = Math.floor((pickNumber1Based - 1) / numTeams);
@@ -25,6 +62,7 @@ const formatOneDecimal = (params) => {
 };
 
 const rightAlign = { cellStyle: { textAlign: 'right' }, headerClass: 'draft-col-right', cellClass: 'draft-col-right' };
+const centerAlign = { cellStyle: { textAlign: 'center' }, headerClass: 'draft-col-center', cellClass: 'draft-col-center' };
 
 const seedComparator = (a, b) => {
   const na = Number(a);
@@ -34,12 +72,93 @@ const seedComparator = (a, b) => {
   return na - nb;
 };
 
+function regionSlug(region) {
+  if (!region || region === '—') return '';
+  return String(region).toLowerCase().replace(/\s+/g, '-');
+}
+
+function RegionPill({ region }) {
+  const slug = regionSlug(region);
+  if (!slug) return <>{region ?? '—'}</>;
+  return <span className={`draft-region-pill draft-region-pill--${slug}`}>{region}</span>;
+}
+
+function MultiSelectDropdown({ options, selected, onChange, placeholder, ariaLabel, id }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+  const label = selected.length === 0 ? placeholder : selected.join(', ');
+  const toggle = (value) => {
+    if (selected.includes(value)) onChange(selected.filter((s) => s !== value));
+    else onChange([...selected, value].sort((a, b) => Number(a) - Number(b)));
+  };
+  return (
+    <div className="draft-multiselect-wrap" ref={ref}>
+      <button
+        type="button"
+        id={id}
+        className="draft-filter-select draft-multiselect-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+      >
+        {label}
+      </button>
+      {open && (
+        <div className="draft-multiselect-panel" role="listbox" aria-multiselectable="true">
+          {options.map((opt) => {
+            const value = typeof opt === 'string' ? opt : opt.value;
+            const labelText = typeof opt === 'string' ? opt : (opt.label || opt.value);
+            const checked = selected.includes(value);
+            return (
+              <label key={value} className="draft-multiselect-option">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(value)}
+                />
+                <span>{labelText || '—'}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DRAFT_COLUMN_DEFS = [
   { field: 'name', headerName: 'Name', sortable: true, minWidth: 165 },
   { field: 'team', headerName: 'Team', sortable: true },
-  { field: 'position', headerName: 'Pos', sortable: true },
-  { field: 'region', headerName: 'Region', sortable: true },
-  { field: 'seed', headerName: 'Seed', sortable: true, comparator: seedComparator },
+  { field: 'position', headerName: 'Pos', sortable: true, ...centerAlign },
+  {
+    field: 'region',
+    headerName: 'Region',
+    sortable: true,
+    cellRenderer: (params) => <RegionPill region={params.value} />,
+  },
+  {
+    field: 'seed',
+    headerName: 'Seed',
+    sortable: true,
+    comparator: seedComparator,
+    valueGetter: (params) => {
+      const v = params.data?.seed;
+      if (v == null || v === '' || v === '—') return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    },
+    valueFormatter: (params) => params.value != null ? String(params.value) : '—',
+    ...centerAlign,
+  },
   { field: 'ppg', headerName: 'PPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'gs', headerName: 'GS', sortable: true, ...rightAlign },
   { field: 'mpg', headerName: 'MPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
@@ -50,7 +169,7 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
     field: 'name',
     headerName: 'Player',
     sortable: true,
-    minWidth: 127,
+    minWidth: 160,
     flex: 1,
     cellRenderer: (params) => {
       const d = params.data;
@@ -59,13 +178,32 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
         <div className="draft-player-cell">
           <span className="draft-player-name">{d.name}</span>
           <span className="draft-player-meta">
-            {d.team} · {d.position} · {d.region} · {d.seed}
+            {d.team} · {d.position}
+            {d.region && d.region !== '—' ? (
+              <> · <RegionPill region={d.region} /></>
+            ) : null}
           </span>
         </div>
       );
     },
   },
-  { field: 'ppg', headerName: 'PPG', sortable: true, width: 84, valueFormatter: formatOneDecimal, ...rightAlign },
+  {
+    field: 'seed',
+    headerName: 'Seed',
+    sortable: true,
+    comparator: seedComparator,
+    valueGetter: (params) => {
+      const v = params.data?.seed;
+      if (v == null || v === '' || v === '—') return null;
+      const n = Number(v);
+      return Number.isNaN(n) ? null : n;
+    },
+    valueFormatter: (params) => params.value != null ? String(params.value) : '—',
+    width: 100,
+    minWidth: 100,
+    ...centerAlign,
+  },
+  { field: 'ppg', headerName: 'PPG', sortable: true, width: 100, minWidth: 100, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'gs', headerName: 'GS', sortable: true, width: 54, ...rightAlign },
   { field: 'mpg', headerName: 'MPG', sortable: true, width: 80, minWidth: 80, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
@@ -128,9 +266,10 @@ export default function ContestPage() {
   }, [tab, load, config?.draftOrder?.length, config?.manager_names?.length, config?.managerNames?.length, (draft ?? []).length]);
 
   const [filterTeam, setFilterTeam] = useState('');
-  const [filterRegion, setFilterRegion] = useState('');
-  const [filterSeed, setFilterSeed] = useState('');
+  const [filterRegion, setFilterRegion] = useState([]);
+  const [filterSeed, setFilterSeed] = useState([]);
   const [hideDrafted, setHideDrafted] = useState(true);
+  const [hideChumps, setHideChumps] = useState(true);
 
   const draftedPlayerIds = new Set((draft || []).map((x) => x.playerId));
   const poolWithDrafted = (playerPool || []).map((pl) => ({
@@ -145,9 +284,10 @@ export default function ContestPage() {
     const withPpg = poolWithDrafted.filter((pl) => pl.pts_per_game != null);
     const filtered = withPpg.filter((pl) => {
       if (hideDrafted && pl.drafted) return false;
+      if (hideChumps && pl.pts_per_game != null && Number(pl.pts_per_game) < 7) return false;
       if (filterTeam && (pl.team_abbreviation || pl.team_name) !== filterTeam) return false;
-      if (filterRegion && (pl.region ?? '') !== filterRegion) return false;
-      if (filterSeed && String(pl.seed ?? '') !== filterSeed) return false;
+      if (filterRegion.length > 0 && !filterRegion.includes(pl.region ?? '')) return false;
+      if (filterSeed.length > 0 && !filterSeed.includes(String(pl.seed ?? ''))) return false;
       return true;
     });
     const seedNum = (v) => { const n = Number(v); return Number.isNaN(n) ? 99 : n; };
@@ -169,7 +309,7 @@ export default function ContestPage() {
         _drafted: pl.drafted,
       };
     });
-  }, [poolWithDrafted, managers, filterTeam, filterRegion, filterSeed, hideDrafted]);
+  }, [poolWithDrafted, managers, filterTeam, filterRegion, filterSeed, hideDrafted, hideChumps]);
 
   const filterOptions = useMemo(() => {
     const withPpg = poolWithDrafted.filter((pl) => pl.pts_per_game != null);
@@ -210,13 +350,15 @@ export default function ContestPage() {
       const position = player?.position || '—';
       const region = player?.region ?? '—';
       const seed = player?.seed ?? '—';
-      const playerMeta = `${team} · ${position} · ${region} · ${seed}`;
+      const playerMeta = `${team} · ${position}`;
       return {
         key: i,
         label: `${round}.${pickInRound}`,
         managerName: managers[midx] ?? `Manager ${midx}`,
         playerName: player?.name ?? `ID ${pid}`,
         playerMeta,
+        region,
+        seed,
       };
     });
     return [...list].reverse();
@@ -234,11 +376,15 @@ export default function ContestPage() {
       if (!byRound || typeof byRound !== 'object') return 0;
       return [1, 2, 3, 4, 5, 6].reduce((sum, r) => sum + (Number(byRound[String(r)]) || 0), 0);
     };
+    const getPlayerById = (id) => playerPool.find((p) => p.id === id);
     const rows = (managers || []).map((name, idx) => {
       const picks = byManager[idx] || [];
-      const playerCount = picks.length;
+      const rosterPlayers = picks
+        .map((p) => getPlayerById(p.playerId ?? p.player_id))
+        .filter(Boolean);
+      const playerCount = rosterPlayers.length;
       const points = picks.reduce((sum, p) => sum + playerTotal(p.playerId ?? p.player_id), 0);
-      const maxGames = playerCount * NUM_ROUNDS;
+      const maxGames = getMaxGamesForRoster(rosterPlayers);
       return {
         managerIndex: idx,
         name,
@@ -248,7 +394,7 @@ export default function ContestPage() {
       };
     });
     return [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
-  }, [managers, draft, scores]);
+  }, [managers, draft, scores, playerPool]);
 
   useEffect(() => {
     if (tab === TABS.leaderboard && managers?.length > 0) {
@@ -341,28 +487,22 @@ export default function ContestPage() {
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
-                <select
-                  value={filterRegion}
-                  onChange={(e) => setFilterRegion(e.target.value)}
-                  className="draft-filter-select"
-                  aria-label="Filter by region"
-                >
-                  <option value="">All Regions</option>
-                  {filterOptions.regions.map((r) => (
-                    <option key={r} value={r}>{r || '—'}</option>
-                  ))}
-                </select>
-                <select
-                  value={filterSeed}
-                  onChange={(e) => setFilterSeed(e.target.value)}
-                  className="draft-filter-select"
-                  aria-label="Filter by seed"
-                >
-                  <option value="">All Seeds</option>
-                  {filterOptions.seeds.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                <MultiSelectDropdown
+                  id="draft-filter-region"
+                  options={filterOptions.regions}
+                  selected={filterRegion}
+                  onChange={setFilterRegion}
+                  placeholder="All Regions"
+                  ariaLabel="Filter by region (multi-select)"
+                />
+                <MultiSelectDropdown
+                  id="draft-filter-seed"
+                  options={filterOptions.seeds}
+                  selected={filterSeed}
+                  onChange={setFilterSeed}
+                  placeholder="All Seeds"
+                  ariaLabel="Filter by seed (multi-select)"
+                />
                 <label className="draft-filter-toggle-label">
                   <input
                     type="checkbox"
@@ -371,7 +511,17 @@ export default function ContestPage() {
                     onChange={(e) => setHideDrafted(e.target.checked)}
                   />
                   <span className="draft-filter-toggle-slider" />
-                  Hide drafted players
+                  Hide Drafted
+                </label>
+                <label className="draft-filter-toggle-label">
+                  <input
+                    type="checkbox"
+                    className="draft-filter-toggle"
+                    checked={hideChumps}
+                    onChange={(e) => setHideChumps(e.target.checked)}
+                  />
+                  <span className="draft-filter-toggle-slider" />
+                  Hide Chumps
                 </label>
               </div>
               <div className="draft-board-layout">
@@ -410,9 +560,14 @@ export default function ContestPage() {
                         <span className="admin-pick-history-manager">{item.managerName}</span>
                         <span className="admin-pick-history-player">
                           <span className="admin-pick-history-player-name">{item.playerName}</span>
-                          {item.playerMeta && (
-                            <span className="admin-pick-history-player-meta">{item.playerMeta}</span>
-                          )}
+                          <span className="admin-pick-history-player-meta">
+                            {item.region && item.region !== '—' ? (
+                              <span className={`draft-region-pill draft-region-pill--${regionSlug(item.region)}`}>
+                                {item.region}{item.seed && item.seed !== '—' ? ` (${item.seed})` : ''}
+                              </span>
+                            ) : null}
+                            {item.region && item.region !== '—' ? ' ' : null}{item.playerMeta}
+                          </span>
                         </span>
                       </li>
                     ))
@@ -444,7 +599,15 @@ export default function ContestPage() {
                       <li key={pl.id}>
                         <span className="player-name">{pl.name}</span>
                         <span className="player-meta">
-                          {pl.position || '—'} — {pl.team_abbreviation || pl.team_name} ({pl.seed ?? '—'})
+                          {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
+                          {pl.region && pl.region !== '—' ? (
+                            <>
+                              {' '}
+                              <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
+                                {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
+                              </span>
+                            </>
+                          ) : null}
                         </span>
                       </li>
                     ))
@@ -517,7 +680,15 @@ export default function ContestPage() {
                             <td className="leaderboard-player-name">
                               {pl.name}
                               <span className="leaderboard-player-meta">
-                                {pl.team_abbreviation || pl.team_name} · {pl.position || '—'}
+                                {pl.team_abbreviation || pl.team_name || '—'} · {pl.position || '—'}
+                                {pl.region && pl.region !== '—' ? (
+                                  <>
+                                    {' '}
+                                    <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
+                                      {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
+                                    </span>
+                                  </>
+                                ) : null}
                               </span>
                             </td>
                             {roundPts.map((pts, i) => (

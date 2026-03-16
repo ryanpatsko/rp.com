@@ -9,13 +9,13 @@ From the repo root:
 ```powershell
 cd api
 npm install
-Compress-Archive -Path index.js, node_modules -DestinationPath ..\contest-api.zip -Force
+Compress-Archive -Path index.js, bracket-regions.json, node_modules -DestinationPath ..\contest-api.zip -Force
 cd ..
 ```
 
 macOS/Linux:
 ```bash
-cd api && npm install && zip -r ../contest-api.zip index.js node_modules && cd ..
+cd api && npm install && zip -r ../contest-api.zip index.js bracket-regions.json node_modules && cd ..
 ```
 
 Then upload `contest-api.zip` as the Lambda function code in the AWS Console. Use **Node.js 18.x** or **20.x** runtime.
@@ -33,7 +33,32 @@ Then upload `contest-api.zip` as the Lambda function code in the AWS Console. Us
 
 **Env:** `CONTEST_BUCKET`, `BALLDONTLIE_API_KEY`, `ADMIN_PASSWORD` (for admin login)
 
-**Lambda timeout:** Set to **at least 2 minutes** (e.g. 120 seconds) so the **Import** action can finish (it paginates through all active players).
+**Lambda timeout:** Set to **at least 2–3 minutes** (e.g. **180 seconds**) so the **Import** action can finish (it paginates through players and season stats). If Import seems to hang or you get a timeout error, increase it in the console (see below).
+
+---
+
+## Increase Lambda timeout (fix "Import" timeout)
+
+1. **AWS Console** → **Lambda** → open your **contest-api** function.
+2. Go to the **Configuration** tab → **General configuration** → **Edit**.
+3. Set **Timeout** to **3 min 0 sec** (or 5 min if you have many teams).
+4. Save.
+
+---
+
+## Test Lambda and see errors (Import / any route)
+
+To run Import (or any route) **inside Lambda** and get the real error or logs:
+
+1. **AWS Console** → **Lambda** → **contest-api** → **Test** tab.
+2. Create a test event (e.g. name: `Import`) and paste the body from **`api/test-event-import.json`** (adjust the contest id in the path if yours is different, e.g. `/contests/2026-1/import`).
+3. Click **Test**. The **Execution result** shows the returned body (success or error message).
+4. Open **Monitor** → **View CloudWatch logs** (or "Logs" in the result). In the log stream you’ll see:
+   - `Import started { contestId, season }`
+   - `Bracket round 1 teams: N`
+   - `Fetched active players page 1 ...` (and so on)
+   - If it times out: **Task timed out after X.XX seconds**. Increase the Lambda timeout as above.
+   - If it fails earlier: **Import failed at &lt;step&gt;: &lt;message&gt;** so you know which step (bracket, players, season_stats, build_pool, s3_put) and the exact error.
 
 ---
 

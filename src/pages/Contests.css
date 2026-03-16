@@ -330,6 +330,56 @@
   box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.25);
 }
 
+/* Multi-select dropdown (Seed, Region) */
+.draft-multiselect-wrap {
+  position: relative;
+}
+
+.draft-multiselect-btn {
+  min-width: 110px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.draft-multiselect-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 100%;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #252628;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  padding: 0.35rem 0;
+}
+
+.draft-multiselect-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.draft-multiselect-option:hover {
+  background: rgba(79, 172, 254, 0.15);
+}
+
+.draft-multiselect-option input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #4facfe;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 .draft-filter-toggle-label {
   display: flex;
   align-items: center;
@@ -376,6 +426,32 @@
 
 .draft-filter-toggle:checked + .draft-filter-toggle-slider::after {
   transform: translateX(16px);
+}
+
+/* Region badge/pill – color by region */
+.draft-region-pill {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  border-radius: 999px;
+  font-size: 0.8em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.draft-region-pill--east {
+  background: rgba(79, 172, 254, 0.35);
+  color: #7cc8ff;
+}
+.draft-region-pill--west {
+  background: rgba(255, 152, 0, 0.35);
+  color: #ffb74d;
+}
+.draft-region-pill--south {
+  background: rgba(76, 175, 80, 0.35);
+  color: #81c784;
+}
+.draft-region-pill--midwest {
+  background: rgba(156, 39, 176, 0.35);
+  color: #ce93d8;
 }
 
 .draft-board-grid {
@@ -537,6 +613,14 @@
 .draft-board-grid .ag-header-cell.draft-col-right .ag-header-cell-text {
   text-align: right;
   width: 100%;
+}
+
+.draft-board-grid .ag-header-cell.draft-col-center .ag-header-cell-text {
+  text-align: center;
+  width: 100%;
+}
+.draft-board-grid .ag-cell.draft-col-center {
+  text-align: center;
 }
 
 /* Teams lineup cards */
