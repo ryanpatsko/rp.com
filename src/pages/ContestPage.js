@@ -72,6 +72,80 @@ const seedComparator = (a, b) => {
   return na - nb;
 };
 
+const REGIONS_ORDER = ['East', 'South', 'West', 'Midwest'];
+
+/** Default (chalk) expected games: higher seed wins every game. 1-seeds: East/West 6, South/Midwest 5; 2→4; 3–4→3; 5–8→2; 9–16→1. */
+function getDefaultExpectedGames(region, seed) {
+  const s = Number(seed);
+  if (Number.isNaN(s) || s < 1) return 1;
+  if (s === 1) {
+    const r = (region || '').trim().toLowerCase();
+    if (r === 'east' || r === 'west') return 6;
+    if (r === 'south' || r === 'midwest') return 5;
+    return 6;
+  }
+  if (s === 2) return 4;
+  if (s === 3 || s === 4) return 3;
+  if (s >= 5 && s <= 8) return 2;
+  return 1;
+}
+
+/** Chalk through round 3: each region sends 1 or 2. Bracket index 0–15 = bits for East, South, West, Midwest (1=that region sends 2-seed). */
+function buildBracketScenarios() {
+  const list = [];
+  for (let i = 0; i < 16; i++) {
+    const eastSeed = (i & 1) ? 2 : 1;
+    const southSeed = (i & 2) ? 2 : 1;
+    const westSeed = (i & 4) ? 2 : 1;
+    const midwestSeed = (i & 8) ? 2 : 1;
+    const left = eastSeed <= southSeed ? { region: 'East', seed: eastSeed } : { region: 'South', seed: southSeed };
+    const right = westSeed <= midwestSeed ? { region: 'West', seed: westSeed } : { region: 'Midwest', seed: midwestSeed };
+    const champion = left.seed <= right.seed ? left : right;
+    const runnerUp = left.seed <= right.seed ? right : left;
+    const finalFour = [
+      { region: 'East', seed: eastSeed },
+      { region: 'South', seed: southSeed },
+      { region: 'West', seed: westSeed },
+      { region: 'Midwest', seed: midwestSeed },
+    ];
+    const finalTwo = [champion, runnerUp];
+    const key = (r, s) => `${(r || '').trim()}_${s}`;
+    const games = {};
+    for (const { region, seed } of finalFour) {
+      const k = key(region, seed);
+      if (region === champion.region && seed === champion.seed) games[k] = 6;
+      else if (region === runnerUp.region && seed === runnerUp.seed) games[k] = 6;
+      else games[k] = 5;
+    }
+    for (const reg of REGIONS_ORDER) {
+      const adv = finalFour.find((f) => f.region === reg);
+      const otherSeed = adv.seed === 1 ? 2 : 1;
+      games[key(reg, otherSeed)] = 4;
+    }
+    list.push({
+      id: `bracket-${i}`,
+      label: `Bracket ${i + 1}`,
+      finalFour,
+      finalTwo,
+      getExpectedGames(region, seed) {
+        const s = Number(seed);
+        if (Number.isNaN(s) || s < 1) return 1;
+        const r = (region || '').trim();
+        if (s === 1 || s === 2) {
+          const k = key(region, s);
+          if (games[k] != null) return games[k];
+        }
+        if (s === 3 || s === 4) return 3;
+        if (s >= 5 && s <= 8) return 2;
+        return 1;
+      },
+    });
+  }
+  return list;
+}
+
+const BRACKET_SCENARIOS = buildBracketScenarios();
+
 function regionSlug(region) {
   if (!region || region === '—') return '';
   return String(region).toLowerCase().replace(/\s+/g, '-');
@@ -135,6 +209,71 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder, ariaLab
   );
 }
 
+function getRegionSeedKey(region, seed) {
+  return `${(region || '').trim().toLowerCase()}_${seed}`;
+}
+
+function formatFinalFour(finalFour, regionSeedToTeam) {
+  if (!finalFour?.length) return '—';
+  return finalFour.map((f) => regionSeedToTeam?.[getRegionSeedKey(f.region, f.seed)] ?? `${f.region} ${f.seed}`).join(', ');
+}
+
+function formatFinalTwo(finalTwo, regionSeedToTeam) {
+  if (!finalTwo?.length) return '—';
+  return finalTwo.map((f) => regionSeedToTeam?.[getRegionSeedKey(f.region, f.seed)] ?? `${f.region} ${f.seed}`).join(' vs ');
+}
+
+function RankingSystemDropdown({ value, onChange, id, ariaLabel, regionSeedToTeam }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+  const defaultOption = { id: 'default', label: 'Rank: Default', finalFour: REGIONS_ORDER.map((r) => ({ region: r, seed: 1 })), finalTwo: [{ region: 'East', seed: 1 }, { region: 'West', seed: 1 }] };
+  const options = [defaultOption, ...BRACKET_SCENARIOS];
+  const current = options.find((o) => o.id === value) || defaultOption;
+  return (
+    <div className="draft-ranking-dropdown-wrap" ref={ref}>
+      <button
+        type="button"
+        id={id}
+        className="draft-filter-select draft-ranking-dropdown-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+      >
+        {current.label}
+      </button>
+      {open && (
+        <div className="draft-ranking-panel" role="listbox">
+          {options.map((opt) => (
+            <div
+              key={opt.id}
+              role="option"
+              aria-selected={value === opt.id}
+              className="draft-ranking-option"
+              onClick={() => {
+                onChange(opt.id);
+                setOpen(false);
+              }}
+            >
+              <span className="draft-ranking-option-title">{opt.label}</span>
+              <span className="draft-ranking-option-meta">Final 4: {formatFinalFour(opt.finalFour, regionSeedToTeam)}</span>
+              <span className="draft-ranking-option-meta">Final 2: {formatFinalTwo(opt.finalTwo, regionSeedToTeam)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const DRAFT_COLUMN_DEFS = [
   { field: 'name', headerName: 'Name', sortable: true, minWidth: 165 },
   { field: 'team', headerName: 'Team', sortable: true },
@@ -160,6 +299,7 @@ const DRAFT_COLUMN_DEFS = [
     ...centerAlign,
   },
   { field: 'ppg', headerName: 'PPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
+  { field: 'rank', headerName: 'Rank', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'gs', headerName: 'GS', sortable: true, ...rightAlign },
   { field: 'mpg', headerName: 'Min', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
@@ -204,6 +344,7 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
     ...centerAlign,
   },
   { field: 'ppg', headerName: 'PPG', sortable: true, width: 68, minWidth: 68, valueFormatter: formatOneDecimal, ...rightAlign },
+  { field: 'rank', headerName: 'Rk', sortable: true, width: 56, minWidth: 56, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'gs', headerName: 'GS', sortable: true, width: 44, minWidth: 44, ...rightAlign },
   { field: 'mpg', headerName: 'Min', sortable: true, width: 60, minWidth: 60, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
@@ -270,6 +411,7 @@ export default function ContestPage() {
   const [filterSeed, setFilterSeed] = useState([]);
   const [hideDrafted, setHideDrafted] = useState(true);
   const [hideChumps, setHideChumps] = useState(true);
+  const [rankingSystem, setRankingSystem] = useState('default');
 
   const draftedPlayerIds = new Set((draft || []).map((x) => x.playerId));
   const poolWithDrafted = (playerPool || []).map((pl) => ({
@@ -295,6 +437,10 @@ export default function ContestPage() {
     return sorted.map((pl) => {
       const region = pl.region ?? '—';
       const seed = pl.seed ?? '—';
+      const scenario = rankingSystem.startsWith('bracket-') ? BRACKET_SCENARIOS.find((s) => s.id === rankingSystem) : null;
+      const expectedGames = scenario ? scenario.getExpectedGames(pl.region, pl.seed) : getDefaultExpectedGames(pl.region, pl.seed);
+      const ppg = pl.pts_per_game ?? 0;
+      const rank = expectedGames * ppg;
       return {
         id: pl.id,
         name: pl.name,
@@ -304,12 +450,13 @@ export default function ContestPage() {
         seed,
         regionSeed: `${region} ${seed}`.trim() || '—',
         ppg: pl.pts_per_game,
+        rank: Math.round(rank * 10) / 10,
         gs: pl.games_started ?? pl.games_played ?? '—',
         mpg: pl.min_per_game ?? '—',
         _drafted: pl.drafted,
       };
     });
-  }, [poolWithDrafted, managers, filterTeam, filterRegion, filterSeed, hideDrafted, hideChumps]);
+  }, [poolWithDrafted, managers, filterTeam, filterRegion, filterSeed, hideDrafted, hideChumps, rankingSystem]);
 
   const filterOptions = useMemo(() => {
     const withPpg = poolWithDrafted.filter((pl) => pl.pts_per_game != null);
@@ -317,6 +464,19 @@ export default function ContestPage() {
     const regions = [...new Set(withPpg.map((pl) => pl.region ?? '').filter((r) => r !== ''))].sort();
     const seeds = [...new Set(withPpg.map((pl) => String(pl.seed ?? '')).filter(Boolean))].sort((a, b) => Number(a) - Number(b));
     return { teams, regions, seeds };
+  }, [poolWithDrafted]);
+
+  const regionSeedToTeam = useMemo(() => {
+    const map = {};
+    for (const pl of poolWithDrafted || []) {
+      const r = pl.region ?? '';
+      const s = pl.seed ?? '';
+      const team = pl.team_abbreviation || pl.team_name || '';
+      if (!team) continue;
+      const key = `${(r + '').trim().toLowerCase()}_${s}`;
+      if (!map[key]) map[key] = team;
+    }
+    return map;
   }, [poolWithDrafted]);
   const picksByManager = (draft || []).reduce((acc, p) => {
     const i = p.managerIndex ?? p.manager_index ?? 0;
@@ -476,6 +636,13 @@ export default function ContestPage() {
                 </div>
               )}
               <div className="draft-board-filters">
+                <RankingSystemDropdown
+                  id="draft-ranking-system"
+                  value={rankingSystem}
+                  onChange={setRankingSystem}
+                  ariaLabel="Ranking system"
+                  regionSeedToTeam={regionSeedToTeam}
+                />
                 <select
                   value={filterTeam}
                   onChange={(e) => setFilterTeam(e.target.value)}

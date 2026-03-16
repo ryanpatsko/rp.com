@@ -380,6 +380,64 @@
   cursor: pointer;
 }
 
+/* Ranking system dropdown (styled options with Final 4 / Final 2) */
+.draft-ranking-dropdown-wrap {
+  position: relative;
+}
+
+.draft-ranking-dropdown-btn {
+  min-width: 140px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.draft-ranking-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #252628;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  padding: 0.35rem 0;
+}
+
+.draft-ranking-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s;
+}
+
+.draft-ranking-option:last-child {
+  border-bottom: none;
+}
+
+.draft-ranking-option:hover {
+  background: rgba(79, 172, 254, 0.15);
+}
+
+.draft-ranking-option-title {
+  font-weight: 600;
+  color: #f5f5f5;
+}
+
+.draft-ranking-option-meta {
+  font-size: 0.8rem;
+  color: #a0a0a0;
+  line-height: 1.3;
+}
+
 .draft-filter-toggle-label {
   display: flex;
   align-items: center;
