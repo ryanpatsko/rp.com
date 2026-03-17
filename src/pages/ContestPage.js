@@ -10,6 +10,60 @@ import './Contests.css';
 
 const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard' };
 const NUM_ROUNDS = 6;
+const INJURY_KEY_INSTRUCTIONS = 'Hardcoded injuries for draft board badges';
+
+const INJURIES = [
+  { team: 'Duke', name: 'Patrick Ngongba II', status: 'Q', note: 'Has a chance to play the first weekend' },
+  { team: 'Duke', name: 'Caleb Foster', status: 'Q', note: 'Fractured foot, out a little while longer' },
+  { team: 'Louisville', name: 'Mikel Brown', status: 'O' },
+  { team: 'UNC', name: 'Caleb Wilson', status: 'O' },
+  { team: 'BYU', name: 'Richie Saunders', status: 'O' },
+  { team: 'Michigan', name: 'L.J. Cason', status: 'O' },
+  { team: 'Alabama', name: 'Aden Holloway', status: 'D', note: 'Arrested with 2.1 pounds of weed' },
+  { team: 'Texas Tech', name: 'JT Toppin', status: 'O' },
+];
+
+function normText(s) {
+  let v = String(s || '').trim().toLowerCase();
+  // Strip common suffixes like "jr" / "jr."
+  v = v.replace(/\s+jr\.?$/, '');
+  return v;
+}
+
+function injuryKey(team, playerName) {
+  return `${normText(team)}|${normText(playerName)}`;
+}
+
+const INJURY_BY_TEAM_AND_NAME = INJURIES.reduce((acc, x) => {
+  acc[injuryKey(x.team, x.name)] = { status: x.status, note: x.note };
+  return acc;
+}, {});
+
+const INJURY_BY_NAME = INJURIES.reduce((acc, x) => {
+  const key = normText(x.name);
+  if (!acc[key]) acc[key] = { status: x.status, note: x.note };
+  return acc;
+}, {});
+
+function getPlayerInjury(player) {
+  if (!player) return null;
+  const team = player.team_abbreviation || player.team_name || '';
+  const key = injuryKey(team, player.name);
+  return INJURY_BY_TEAM_AND_NAME[key] || INJURY_BY_NAME[normText(player.name)] || null;
+}
+
+function InjuryBadge({ injury }) {
+  if (!injury?.status) return null;
+  const status = String(injury.status).toUpperCase();
+  const note = injury.note ? String(injury.note) : '';
+  const title = note ? `${status}: ${note}` : status;
+  const cls = status === 'O' ? 'injury-badge--o' : (status === 'D' ? 'injury-badge--d' : 'injury-badge--q');
+  return (
+    <span className={`injury-badge ${cls}`} title={title} aria-label={title}>
+      {status}
+    </span>
+  );
+}
 
 /**
  * Bracket-aware max games for a roster. Group by team; when two teams could meet, assume the
@@ -275,7 +329,22 @@ function RankingSystemDropdown({ value, onChange, id, ariaLabel, regionSeedToTea
 }
 
 const DRAFT_COLUMN_DEFS = [
-  { field: 'name', headerName: 'Name', sortable: true, minWidth: 165 },
+  {
+    field: 'name',
+    headerName: 'Name',
+    sortable: true,
+    minWidth: 165,
+    cellRenderer: (params) => {
+      const d = params.data;
+      if (!d) return null;
+      return (
+        <span className="draft-player-name-inline">
+          <span>{d.name}</span>
+          <InjuryBadge injury={d.injury} />
+        </span>
+      );
+    },
+  },
   { field: 'team', headerName: 'Team', sortable: true },
   { field: 'position', headerName: 'Pos', sortable: true, ...centerAlign },
   {
@@ -300,7 +369,7 @@ const DRAFT_COLUMN_DEFS = [
   },
   { field: 'ppg', headerName: 'PPG', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'rank', headerName: 'Rank', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
-  { field: 'gs', headerName: 'GS', sortable: true, ...rightAlign },
+  { field: 'gs', headerName: 'G', sortable: true, ...rightAlign },
   { field: 'mpg', headerName: 'Min', sortable: true, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
 
@@ -316,7 +385,10 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
       if (!d) return null;
       return (
         <div className="draft-player-cell">
-          <span className="draft-player-name">{d.name}</span>
+          <span className="draft-player-name">
+            <span>{d.name}</span>
+            <InjuryBadge injury={d.injury} />
+          </span>
           <span className="draft-player-meta">
             {d.team} · {d.position}
             {d.region && d.region !== '—' ? (
@@ -345,7 +417,7 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
   },
   { field: 'ppg', headerName: 'PPG', sortable: true, width: 68, minWidth: 68, valueFormatter: formatOneDecimal, ...rightAlign },
   { field: 'rank', headerName: 'Rk', sortable: true, width: 56, minWidth: 56, valueFormatter: formatOneDecimal, ...rightAlign },
-  { field: 'gs', headerName: 'GS', sortable: true, width: 44, minWidth: 44, ...rightAlign },
+  { field: 'gs', headerName: 'G', sortable: true, width: 44, minWidth: 44, ...rightAlign },
   { field: 'mpg', headerName: 'Min', sortable: true, width: 60, minWidth: 60, valueFormatter: formatOneDecimal, ...rightAlign },
 ];
 
@@ -425,7 +497,9 @@ export default function ContestPage() {
   const draftBoardRows = useMemo(() => {
     const withPpg = poolWithDrafted.filter((pl) => pl.pts_per_game != null);
     const filtered = withPpg.filter((pl) => {
+      const injury = getPlayerInjury(pl);
       if (hideDrafted && pl.drafted) return false;
+      if (hideChumps && injury?.status === 'O') return false;
       if (hideChumps && pl.pts_per_game != null && Number(pl.pts_per_game) < 7) return false;
       if (filterTeam && (pl.team_abbreviation || pl.team_name) !== filterTeam) return false;
       if (filterRegion.length > 0 && !filterRegion.includes(pl.region ?? '')) return false;
@@ -444,6 +518,7 @@ export default function ContestPage() {
       return {
         id: pl.id,
         name: pl.name,
+        injury: getPlayerInjury(pl),
         team: pl.team_abbreviation || pl.team_name || '—',
         position: pl.position || '—',
         region,
@@ -688,7 +763,7 @@ export default function ContestPage() {
                     onChange={(e) => setHideChumps(e.target.checked)}
                   />
                   <span className="draft-filter-toggle-slider" />
-                  Hide Chumps
+                  Hide Chumps + Out
                 </label>
               </div>
               <div className="draft-board-layout">
