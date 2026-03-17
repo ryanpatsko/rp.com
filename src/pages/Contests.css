@@ -1319,6 +1319,10 @@
   color: #fff;
 }
 
+.admin-draft-grid.ag-theme-quartz-dark .ag-row:hover {
+  background-color: rgba(79, 172, 254, 0.12);
+}
+
 .admin-draft-grid.ag-theme-quartz-dark .ag-cell {
   color: #fff;
   border-color: rgba(255, 255, 255, 0.16);
