@@ -425,7 +425,7 @@ const MOBILE_BREAKPOINT_PX = 768;
 
 export default function ContestPage() {
   const { contestId } = useParams();
-  const [tab, setTab] = useState(TABS.draft);
+  const [tab, setTab] = useState(TABS.leaderboard);
   const [selectedLeaderboardManager, setSelectedLeaderboardManager] = useState(null);
   const [config, setConfig] = useState(null);
   const [draft, setDraft] = useState([]);
