@@ -102,6 +102,19 @@ function getMaxGamesForRoster(players) {
   return r1 + r2 + r3 + r4 + r5 + r6;
 }
 
+/** teamEliminatedAfterRound from API: team id -> bracket round lost (same numbering as score columns). */
+function getTeamElimRound(player, teamEliminatedAfterRound) {
+  if (!teamEliminatedAfterRound || !player || player.team_id == null) return null;
+  const r = teamEliminatedAfterRound[String(player.team_id)];
+  if (r == null) return null;
+  const n = Number(r);
+  return Number.isNaN(n) ? null : n;
+}
+
+function isTeamActiveInBracket(player, teamEliminatedAfterRound) {
+  return getTeamElimRound(player, teamEliminatedAfterRound) == null;
+}
+
 function getNextManagerIndex(pickNumber1Based, numTeams = 8) {
   const round = Math.floor((pickNumber1Based - 1) / numTeams);
   const pickInRound = (pickNumber1Based - 1) % numTeams;
@@ -431,6 +444,7 @@ export default function ContestPage() {
   const [draft, setDraft] = useState([]);
   const [playerPool, setPlayerPool] = useState([]);
   const [scores, setScores] = useState({});
+  const [teamEliminatedAfterRound, setTeamEliminatedAfterRound] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT_PX);
@@ -452,12 +466,13 @@ export default function ContestPage() {
         contestApi.getConfig(contestId),
         contestApi.getDraft(contestId),
         contestApi.getPlayerPool(contestId),
-        contestApi.getScores(contestId).catch(() => ({ scores: {} })),
+        contestApi.getScores(contestId).catch(() => ({ scores: {}, teamEliminatedAfterRound: {} })),
       ]);
       setConfig(c);
       setDraft(Array.isArray(d) ? d : []);
       setPlayerPool(Array.isArray(p) ? p : []);
       setScores(scoresRes?.scores ?? {});
+      setTeamEliminatedAfterRound(scoresRes?.teamEliminatedAfterRound ?? {});
     } catch (e) {
       setError(e.message);
     } finally {
@@ -617,9 +632,10 @@ export default function ContestPage() {
       const rosterPlayers = picks
         .map((p) => getPlayerById(p.playerId ?? p.player_id))
         .filter(Boolean);
-      const playerCount = rosterPlayers.length;
+      const activePlayers = rosterPlayers.filter((pl) => isTeamActiveInBracket(pl, teamEliminatedAfterRound));
+      const playerCount = activePlayers.length;
       const points = picks.reduce((sum, p) => sum + playerTotal(p.playerId ?? p.player_id), 0);
-      const maxGames = getMaxGamesForRoster(rosterPlayers);
+      const maxGames = getMaxGamesForRoster(activePlayers);
       return {
         managerIndex: idx,
         name,
@@ -629,7 +645,7 @@ export default function ContestPage() {
       };
     });
     return [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
-  }, [managers, draft, scores, playerPool]);
+  }, [managers, draft, scores, playerPool, teamEliminatedAfterRound]);
 
   useEffect(() => {
     if (tab === TABS.leaderboard && managers?.length > 0) {
@@ -908,8 +924,8 @@ export default function ContestPage() {
                 <tr>
                   <th>Manager</th>
                   <th className="leaderboard-num">Points</th>
-                  <th className="leaderboard-num">Players</th>
-                  <th className="leaderboard-num">Max Games</th>
+                  <th className="leaderboard-num" title="Players whose teams are still alive">Remaining</th>
+                  <th className="leaderboard-num" title="Max games (bracket projection) for active players only">Max Games</th>
                 </tr>
               </thead>
               <tbody>
@@ -954,8 +970,8 @@ export default function ContestPage() {
                     ) : (
                       selectedRosterPlayers.map((pl) => {
                         const byRound = scores[String(pl.id)] || {};
-                        const roundPts = [1, 2, 3, 4, 5, 6].map((r) => Number(byRound[String(r)]) || 0);
-                        const total = roundPts.reduce((s, n) => s + n, 0);
+                        const elimR = getTeamElimRound(pl, teamEliminatedAfterRound);
+                        const total = [1, 2, 3, 4, 5, 6].reduce((s, r) => s + (Number(byRound[String(r)]) || 0), 0);
                         return (
                           <tr key={pl.id}>
                             <td className="leaderboard-player-name">
@@ -972,9 +988,21 @@ export default function ContestPage() {
                                 ) : null}
                               </span>
                             </td>
-                            {roundPts.map((pts, i) => (
-                              <td key={i} className="leaderboard-round-num">{pts || ''}</td>
-                            ))}
+                            {[1, 2, 3, 4, 5, 6].map((r) => {
+                              const raw = byRound[String(r)];
+                              const pts = Number(raw);
+                              const hasVal = raw != null && raw !== '' && !Number.isNaN(pts);
+                              const showX = elimR != null && r > elimR;
+                              return (
+                                <td
+                                  key={r}
+                                  className={showX ? 'leaderboard-round-num leaderboard-round-out' : 'leaderboard-round-num'}
+                                  title={showX ? 'Eliminated — no further games' : undefined}
+                                >
+                                  {showX ? '×' : (hasVal ? pts : '')}
+                                </td>
+                              );
+                            })}
                             <td className="leaderboard-total-col">{total || ''}</td>
                           </tr>
                         );

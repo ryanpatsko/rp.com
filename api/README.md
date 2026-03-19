@@ -24,8 +24,8 @@ Then upload `contest-api.zip` as the Lambda function code in the AWS Console. Us
 - `GET /contests/{contestId}/config` — contest config
 - `GET /contests/{contestId}/draft` — draft picks
 - `GET /contests/{contestId}/player-pool` — player pool
-- `GET /contests/{contestId}/scores` — scoring: pts per player per round (reads from S3 cache; computes and caches if missing)
-- `POST /contests/{contestId}/refresh-scores` — recompute scores from BallDontLie and update S3 cache (call from a cron/scheduled task)
+- `GET /contests/{contestId}/scores` — `{ scores, teamEliminatedAfterRound, updatedAt }`. `scores`: playerId → `{ "1"…"6": pts }`. `teamEliminatedAfterRound`: BDL **team id** (string key) → bracket round that team lost (same numbering as score columns); used client-side for “×” after elimination, **Remaining**, and **Max games**.
+- `POST /contests/{contestId}/refresh-scores` — recompute scores + elimination map from BallDontLie and update S3 cache (admin “Refresh Scores” or cron)
 - `PUT /contests/{contestId}/draft` — update draft (body: JSON array of picks)
 - `POST /contests/{contestId}/import` — run BallDontLie import, write player-pool.json
 - `POST /contests/{contestId}/admin-login` — body `{ "password": "..." }`, returns `{ "token": "..." }` if correct

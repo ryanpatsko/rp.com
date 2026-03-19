@@ -312,6 +312,87 @@ function parseBracketAllGames(bracketResponse, defaultRound = null) {
 }
 
 /**
+ * Rich bracket game for elimination (BallDontLie rounds 1–7; 7 = championship).
+ * home_team / away_team include winner + score when the game is final.
+ */
+function parseBracketGameDetail(g, defaultRound = null) {
+  const gameId = g.game_id ?? g.id;
+  let round = Number(g.round);
+  if (Number.isNaN(round) && defaultRound != null && defaultRound >= 1 && defaultRound <= 7) round = defaultRound;
+  if (gameId == null) return null;
+  if (Number.isNaN(round) || round < 1 || round > 7) return null;
+  const home = g.home_team;
+  const away = g.away_team;
+  const homeId = home?.id != null ? Number(home.id) : null;
+  const awayId = away?.id != null ? Number(away.id) : null;
+  return {
+    gameId: Number(gameId),
+    round,
+    homeId,
+    awayId,
+    homeWinner: home?.winner,
+    awayWinner: away?.winner,
+    homeScore: home?.score != null ? Number(home.score) : (g.home_score != null ? Number(g.home_score) : null),
+    awayScore: away?.score != null ? Number(away.score) : (g.away_score != null ? Number(g.away_score) : null),
+    status: g.status ?? null,
+  };
+}
+
+function parseBracketAllGamesDetail(bracketResponse, defaultRound = null) {
+  const out = [];
+  const pushGames = (list) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((g) => {
+      const parsed = parseBracketGameDetail(g, defaultRound);
+      if (parsed) out.push(parsed);
+    });
+  };
+
+  const data = bracketResponse?.data ?? bracketResponse?.games ?? bracketResponse;
+  if (Array.isArray(data)) {
+    pushGames(data);
+  } else if (data && typeof data === 'object') {
+    if (Array.isArray(data.games)) pushGames(data.games);
+    const rounds = data.rounds ?? data;
+    if (rounds && typeof rounds === 'object' && !Array.isArray(rounds)) {
+      [1, 2, 3, 4, 5, 6, 7].forEach((r) => {
+        const list = rounds[r] ?? rounds[String(r)];
+        if (Array.isArray(list)) pushGames(list);
+      });
+    }
+  }
+
+  return out;
+}
+
+/** teamId (string key) -> eliminated after this bracket round (lost that game). */
+function buildTeamEliminationMap(gameDetails) {
+  const out = {};
+  for (const g of gameDetails) {
+    const {
+      round, homeId, awayId, homeWinner, awayWinner, homeScore, awayScore, status,
+    } = g;
+    if (homeId == null || awayId == null) continue;
+    let loserId = null;
+    if (homeWinner === true && awayWinner === false) loserId = awayId;
+    else if (awayWinner === true && homeWinner === false) loserId = homeId;
+    else {
+      const st = String(status || '').toLowerCase();
+      if (st === 'post' || st === 'final' || st === 'completed') {
+        if (homeScore != null && awayScore != null && !Number.isNaN(homeScore) && !Number.isNaN(awayScore)) {
+          if (homeScore < awayScore) loserId = homeId;
+          else if (awayScore < homeScore) loserId = awayId;
+        }
+      }
+    }
+    if (loserId == null) continue;
+    const lk = String(loserId);
+    if (out[lk] == null) out[lk] = round;
+  }
+  return out;
+}
+
+/**
  * Fetches player stats for one game (GOAT tier). Returns array of { player_id, pts }.
  * Uses /player_stats with game_ids (or single game_id) per BallDontLie NCAAB.
  */
@@ -332,28 +413,33 @@ async function fetchPlayerStatsForGame(apiKey, gameId) {
 }
 
 /**
- * Builds scores map: playerId -> { "1": pts, "2": pts, ... } for rounds 1-6.
- * Fetches bracket with round_id=1 through 6 so we get games for every round.
+ * Builds scores (rounds 1–6 per existing grid) and teamEliminatedAfterRound from bracket winners.
+ * Fetches bracket round_id 1–7 for elimination; player stats only for games in rounds 1–6.
  */
 async function buildScores(apiKey, season = BRACKET_SEASON) {
-  const allGames = [];
-  for (let roundId = 1; roundId <= 6; roundId++) {
+  const allGamesDetail = [];
+  for (let roundId = 1; roundId <= 7; roundId++) {
     const bracketRes = await fetchBracket(apiKey, season, roundId);
-    const games = parseBracketAllGames(bracketRes, roundId);
-    games.forEach((g) => allGames.push(g));
+    const games = parseBracketAllGamesDetail(bracketRes, roundId);
+    games.forEach((g) => allGamesDetail.push(g));
     await new Promise((r) => setTimeout(r, 120));
   }
+  const teamEliminatedAfterRound = buildTeamEliminationMap(allGamesDetail);
   const scores = {};
-  for (const { gameId, round } of allGames) {
-    const rows = await fetchPlayerStatsForGame(apiKey, gameId);
+  const statsDone = new Set();
+  for (const g of allGamesDetail) {
+    if (g.round > 6) continue;
+    if (statsDone.has(g.gameId)) continue;
+    statsDone.add(g.gameId);
+    const rows = await fetchPlayerStatsForGame(apiKey, g.gameId);
     for (const { playerId, pts } of rows) {
       const key = String(playerId);
       if (!scores[key]) scores[key] = {};
-      scores[key][String(round)] = pts;
+      scores[key][String(g.round)] = pts;
     }
     await new Promise((r) => setTimeout(r, 120));
   }
-  return scores;
+  return { scores, teamEliminatedAfterRound };
 }
 
 async function runImport(bucket, contestId, apiKey) {
@@ -561,21 +647,34 @@ exports.handler = async (event) => {
         const cacheKey = `${prefix}/scores.json`;
         let data = await getS3Json(bucket, cacheKey);
         if (!data || !data.scores) {
-          const scores = await buildScores(apiKey);
-          data = { scores, updatedAt: new Date().toISOString() };
+          const built = await buildScores(apiKey);
+          data = {
+            scores: built.scores,
+            teamEliminatedAfterRound: built.teamEliminatedAfterRound,
+            updatedAt: new Date().toISOString(),
+          };
           await putS3Json(bucket, cacheKey, data);
         }
-        return jsonResponse({ scores: data.scores, updatedAt: data.updatedAt ?? null });
+        return jsonResponse({
+          scores: data.scores,
+          teamEliminatedAfterRound: data.teamEliminatedAfterRound ?? {},
+          updatedAt: data.updatedAt ?? null,
+        });
       }
     }
 
     if (resourceLower === 'refresh-scores') {
       if (method === 'POST') {
-        const scores = await buildScores(apiKey);
-        const data = { scores, updatedAt: new Date().toISOString() };
+        const built = await buildScores(apiKey);
+        const data = {
+          scores: built.scores,
+          teamEliminatedAfterRound: built.teamEliminatedAfterRound,
+          updatedAt: new Date().toISOString(),
+        };
         await putS3Json(bucket, `${prefix}/scores.json`, data);
         return jsonResponse({ ok: true, updatedAt: data.updatedAt });
       }
+      return jsonResponse({ error: 'Method not allowed', hint: 'Use POST (not GET) for refresh-scores' }, 405);
     }
 
     if (resourceLower === 'import') {

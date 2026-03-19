@@ -8,13 +8,21 @@ alwaysApply: true
 
 When you change any file under `api/` (especially `api/index.js`), **always** create the Lambda deployment zip so the user can upload it without running the command themselves.
 
-**Command** (run from repo root or from `api/`):
+## Required output name
 
-- **PowerShell:** From `api/` directory:
-  `Set-Location api; Compress-Archive -Path index.js,bracket-regions.json,node_modules -DestinationPath ..\contest-api.zip -Force`
-- Or from repo root:
-  `Set-Location c:\Users\ryanp\Desktop\code\rp.com\api; Compress-Archive -Path index.js,bracket-regions.json,node_modules -DestinationPath ..\contest-api.zip -Force`
+- **Always** write **`contest-api.zip`** at the **repo root** (same folder as `package.json` / `src/`).
+- **Never** use other names (e.g. `api.zip`). The user and any scripts expect **`contest-api.zip`**.
 
-**Output:** `contest-api.zip` in the repo root (`rp.com/contest-api.zip`).
+## Correct contents (Lambda expects files at zip root)
 
-Run this at the end of your response whenever you have edited API code, and tell the user the zip is ready to upload to the Lambda console.
+The zip must contain **`index.js`**, **`bracket-regions.json`**, and **`node_modules/`** at the **top level** of the archive — i.e. create the zip **from inside `api/`** with those items, not a nested `api/` folder. Uploading a zip whose root is `api/index.js` can break the handler if Lambda is configured for `index.handler` at zip root.
+
+**PowerShell** (from repo root):
+
+```powershell
+Set-Location api
+Compress-Archive -Path index.js,bracket-regions.json,node_modules -DestinationPath ..\contest-api.zip -Force
+Set-Location ..
+```
+
+Run this at the end of your response whenever you have edited API code, and tell the user **`contest-api.zip`** is ready to upload to the Lambda console.

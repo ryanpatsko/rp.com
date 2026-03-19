@@ -1018,6 +1018,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.leaderboard-round-out {
+  color: #888;
+  font-weight: 600;
+}
+
 .leaderboard-total-col {
   text-align: center;
   min-width: 2.5rem;
