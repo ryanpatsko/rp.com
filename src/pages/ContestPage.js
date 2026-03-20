@@ -115,6 +115,19 @@ function isTeamActiveInBracket(player, teamEliminatedAfterRound) {
   return getTeamElimRound(player, teamEliminatedAfterRound) == null;
 }
 
+function countPlayedGamesForPlayers(players, scores) {
+  if (!players?.length || !scores) return 0;
+  let total = 0;
+  for (const pl of players) {
+    const byRound = scores[String(pl.id)];
+    if (!byRound || typeof byRound !== 'object') continue;
+    for (let r = 1; r <= 6; r++) {
+      if (Object.prototype.hasOwnProperty.call(byRound, String(r))) total += 1;
+    }
+  }
+  return total;
+}
+
 function getNextManagerIndex(pickNumber1Based, numTeams = 8) {
   const round = Math.floor((pickNumber1Based - 1) / numTeams);
   const pickInRound = (pickNumber1Based - 1) % numTeams;
@@ -637,7 +650,9 @@ export default function ContestPage() {
       const activePlayers = rosterPlayers.filter((pl) => isTeamActiveInBracket(pl, teamEliminatedAfterRound));
       const playerCount = activePlayers.length;
       const points = picks.reduce((sum, p) => sum + playerTotal(p.playerId ?? p.player_id), 0);
-      const maxGames = getMaxGamesForRoster(activePlayers);
+      const projectedActiveGames = getMaxGamesForRoster(activePlayers);
+      const playedActiveGames = countPlayedGamesForPlayers(activePlayers, scores);
+      const maxGames = Math.max(0, projectedActiveGames - playedActiveGames);
       return {
         managerIndex: idx,
         name,

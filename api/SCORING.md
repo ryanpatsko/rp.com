@@ -2,6 +2,7 @@
 
 ## How scoring works
 
+- Bracket data uses **`/bracket` with cursor pagination per `round_id`** so every game in that round is included (the API often splits large rounds across pages; a single request misses later games, e.g. day 2 of the Round of 64).
 - **GET /contests/{contestId}/scores** — Returns points per player per round. The Lambda reads from S3 (`contests/{contestId}/scores.json`). If that file is missing, it computes scores from the BallDontLie bracket + player_stats API and writes to S3, then returns the result.
 - **POST /contests/{contestId}/refresh-scores** — Forces a full recompute from BallDontLie and updates the S3 cache. Use this from a **cron job or scheduled task** during the tournament so scores stay up to date.
 

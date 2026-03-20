@@ -162,9 +162,36 @@ async function fetchPlayerSeasonStats(apiKey, playerIds, season = 2025) {
  */
 async function fetchBracket(apiKey, season = BRACKET_SEASON, roundId = null) {
   const params = { season };
-  if (roundId != null && roundId >= 1 && roundId <= 6) params.round_id = roundId;
+  if (roundId != null && roundId >= 1 && roundId <= 7) params.round_id = roundId;
   const data = await bdlFetch(apiKey, '/bracket', params);
   return data;
+}
+
+/**
+ * All games for one bracket round, following cursor pagination. A single /bracket?round_id=
+ * response can be a partial page — without this, later games (e.g. day-2 Round of 64) are missed.
+ */
+async function fetchBracketRoundAllPages(apiKey, season, roundId) {
+  const all = [];
+  let cursor = undefined;
+  let page = 0;
+  if (roundId < 1 || roundId > 7) return all;
+  do {
+    const params = { season, round_id: roundId };
+    if (cursor != null) params.cursor = cursor;
+    const data = await bdlFetch(apiKey, '/bracket', params);
+    const list = data.data ?? data.games ?? [];
+    const games = Array.isArray(list) ? list : (list?.games && Array.isArray(list.games) ? list.games : []);
+    for (const g of games) {
+      const parsed = parseBracketGameDetail(g, roundId);
+      if (parsed) all.push(parsed);
+    }
+    cursor = data.meta?.next_cursor ?? null;
+    page += 1;
+    console.log('Bracket round', roundId, 'page', page, '+', games.length, 'games, total parsed', all.length, 'next_cursor', cursor != null);
+    if (cursor) await new Promise((r) => setTimeout(r, 120));
+  } while (cursor);
+  return all;
 }
 
 /**
@@ -428,9 +455,8 @@ async function fetchPlayerStatsForGame(apiKey, gameId) {
 async function buildScores(apiKey, season = BRACKET_SEASON) {
   const allGamesDetail = [];
   for (let roundId = 1; roundId <= 7; roundId++) {
-    const bracketRes = await fetchBracket(apiKey, season, roundId);
-    const games = parseBracketAllGamesDetail(bracketRes, roundId);
-    games.forEach((g) => allGamesDetail.push(g));
+    const roundGames = await fetchBracketRoundAllPages(apiKey, season, roundId);
+    roundGames.forEach((g) => allGamesDetail.push(g));
     await new Promise((r) => setTimeout(r, 120));
   }
   const teamEliminatedAfterRound = buildTeamEliminationMap(allGamesDetail);
