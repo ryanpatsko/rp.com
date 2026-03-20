@@ -37,3 +37,28 @@ You do **not** need to add a separate route for scores.
    - From a server or cron service (e.g. GitHub Actions, Vercel Cron, or a small server), call `POST …/refresh-scores` on the same schedule.
 
 Replace `2026-1` with your actual contest id if different.
+
+## Debugging missing player scores
+
+Scores are stored by **BallDontLie player id** (from each row of `/ncaab/v1/player_stats` for the **game_id** on the bracket). Your pool’s `id` must match that same id.
+
+1. **Confirm ids in the pool**  
+   In `player-pool.json` (or the draft board), find the player and note **`id`** and **`team_id`**.
+
+Is the game on the bracket?
+2. **Bracket drives which games we scrape**  
+   We only call `player_stats` for `game_id` values returned from **`GET /ncaab/v1/bracket`** (per `round_id` 1–7). If a game is missing, late, or under a different round in the API, we never fetch stats for it.
+
+3. **Call BallDontLie directly** (replace `GAME_ID` and your key):
+
+   ```http
+   GET https://api.balldontlie.io/ncaab/v1/player_stats?game_ids[]=GAME_ID&per_page=100
+   Authorization: YOUR_KEY
+   ```
+   Follow **`meta.next_cursor`** until null — if your player never appears, the data issue is upstream. If they appear with `pts` but your app shows blank, check that **`player.id`** matches the pool.
+
+4. **Inspect the cache**  
+   Open S3 `contests/{contestId}/scores.json` and look under **`scores["PLAYER_ID"]`** for the round key (`"1"` … `"6"`).
+
+5. **After code fixes**  
+   Redeploy Lambda and run **POST …/refresh-scores** once so `scores.json` is rebuilt.

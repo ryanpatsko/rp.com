@@ -448,6 +448,8 @@ export default function ContestPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT_PX);
+  /** False when not on Leaderboard tab; used to detect switching onto Leaderboard so we auto-pick the points leader. */
+  const leaderboardTabActiveRef = useRef(false);
 
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`);
@@ -648,12 +650,21 @@ export default function ContestPage() {
   }, [managers, draft, scores, playerPool, teamEliminatedAfterRound]);
 
   useEffect(() => {
-    if (tab === TABS.leaderboard && managers?.length > 0) {
-      if (selectedLeaderboardManager == null || selectedLeaderboardManager >= managers.length) {
-        setSelectedLeaderboardManager(0);
-      }
+    if (tab !== TABS.leaderboard) {
+      leaderboardTabActiveRef.current = false;
+      return;
     }
-  }, [tab, managers, selectedLeaderboardManager]);
+    if (!managers?.length || !leaderboardRows.length) return;
+    const leaderIdx = leaderboardRows[0].managerIndex;
+    const invalid =
+      selectedLeaderboardManager == null ||
+      selectedLeaderboardManager >= managers.length;
+    const enteredLeaderboard = !leaderboardTabActiveRef.current;
+    leaderboardTabActiveRef.current = true;
+    if (invalid || enteredLeaderboard) {
+      setSelectedLeaderboardManager(leaderIdx);
+    }
+  }, [tab, managers, leaderboardRows, selectedLeaderboardManager]);
 
   const selectedRosterPlayers = useMemo(() => {
     if (selectedLeaderboardManager == null) return [];

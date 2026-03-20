@@ -394,21 +394,30 @@ function buildTeamEliminationMap(gameDetails) {
 
 /**
  * Fetches player stats for one game (GOAT tier). Returns array of { player_id, pts }.
- * Uses /player_stats with game_ids (or single game_id) per BallDontLie NCAAB.
+ * Uses /player_stats with game_ids; follows cursor pagination so no players are dropped on busy games.
  */
 async function fetchPlayerStatsForGame(apiKey, gameId) {
+  const rows = [];
+  let cursor = undefined;
   try {
-    const data = await bdlFetch(apiKey, '/player_stats', { game_ids: [gameId] });
-    const list = data.data ?? [];
-    if (!Array.isArray(list)) return [];
-    return list.map((row) => {
-      const playerId = row.player?.id ?? row.player_id;
-      const pts = row.pts != null ? Number(row.pts) : 0;
-      return { playerId, pts };
-    }).filter((r) => r.playerId != null);
+    do {
+      const params = { game_ids: [gameId], per_page: 100 };
+      if (cursor != null) params.cursor = cursor;
+      const data = await bdlFetch(apiKey, '/player_stats', params);
+      const list = data.data ?? [];
+      if (!Array.isArray(list)) break;
+      for (const row of list) {
+        const playerId = row.player?.id ?? row.player_id;
+        const pts = row.pts != null ? Number(row.pts) : 0;
+        if (playerId != null) rows.push({ playerId, pts });
+      }
+      cursor = data.meta?.next_cursor ?? null;
+      if (cursor) await new Promise((r) => setTimeout(r, 80));
+    } while (cursor);
+    return rows;
   } catch (e) {
     console.warn('player_stats for game', gameId, e.message);
-    return [];
+    return rows;
   }
 }
 
