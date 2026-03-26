@@ -1198,7 +1198,7 @@ export default function ContestPage() {
                       (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
                     );
                     return (
-                      <tr key={pl.id}>
+                      <tr key={pl.id} className="players-grid-data-row">
                         <td className="leaderboard-player-name players-grid-col-player">{pl.name}</td>
                         <td className="players-grid-col-team">{pl.team_abbreviation || pl.team_name || '—'}</td>
                         <td className="players-grid-col-pos">{pl.position || '—'}</td>

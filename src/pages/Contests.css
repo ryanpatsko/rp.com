@@ -1087,11 +1087,29 @@
   min-width: 52rem;
 }
 
+.players-grid-table tbody tr.players-grid-data-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.players-grid-table tbody tr.players-grid-data-row:hover {
+  background: rgba(79, 172, 254, 0.1);
+}
+
+.players-grid-table tbody tr.players-grid-data-row:nth-child(even):hover {
+  background: rgba(79, 172, 254, 0.14);
+}
+
 .players-grid-table th.players-grid-col-team,
 .players-grid-table th.players-grid-col-pos,
 .players-grid-table th.players-grid-col-region,
 .players-grid-table th.players-grid-col-manager {
   text-align: left;
+}
+
+.players-grid-table th.players-grid-col-seed,
+.players-grid-table td.players-grid-col-seed {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .players-grid-table td.players-grid-col-team,
