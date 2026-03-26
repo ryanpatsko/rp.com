@@ -8,7 +8,9 @@ import 'ag-grid-community/styles/ag-theme-quartz.css';
 import * as contestApi from '../contestApi';
 import './Contests.css';
 
-const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard' };
+const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard', players: 'players' };
+/** Match API score refresh schedule (~2 min). */
+const LEADERBOARD_REFRESH_MS = 2 * 60 * 1000;
 const NUM_ROUNDS = 6;
 const INJURY_KEY_INSTRUCTIONS = 'Hardcoded injuries for draft board badges';
 
@@ -457,6 +459,8 @@ export default function ContestPage() {
   const [draft, setDraft] = useState([]);
   const [playerPool, setPlayerPool] = useState([]);
   const [scores, setScores] = useState({});
+  /** Same shape as scores; true = that round's points are from an in-progress game. */
+  const [scoresLive, setScoresLive] = useState({});
   const [teamEliminatedAfterRound, setTeamEliminatedAfterRound] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -481,12 +485,15 @@ export default function ContestPage() {
         contestApi.getConfig(contestId),
         contestApi.getDraft(contestId),
         contestApi.getPlayerPool(contestId),
-        contestApi.getScores(contestId).catch(() => ({ scores: {}, teamEliminatedAfterRound: {} })),
+        contestApi
+          .getScores(contestId)
+          .catch(() => ({ scores: {}, scoresLive: {}, teamEliminatedAfterRound: {} })),
       ]);
       setConfig(c);
       setDraft(Array.isArray(d) ? d : []);
       setPlayerPool(Array.isArray(p) ? p : []);
       setScores(scoresRes?.scores ?? {});
+      setScoresLive(scoresRes?.scoresLive ?? {});
       setTeamEliminatedAfterRound(scoresRes?.teamEliminatedAfterRound ?? {});
     } catch (e) {
       setError(e.message);
@@ -507,6 +514,12 @@ export default function ContestPage() {
     const interval = setInterval(load, 10 * 1000);
     return () => clearInterval(interval);
   }, [tab, load, config?.draftOrder?.length, config?.manager_names?.length, config?.managerNames?.length, (draft ?? []).length]);
+
+  useEffect(() => {
+    if (tab !== TABS.leaderboard && tab !== TABS.players) return;
+    const interval = setInterval(load, LEADERBOARD_REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [tab, load]);
 
   const [filterTeam, setFilterTeam] = useState('');
   const [filterRegion, setFilterRegion] = useState([]);
@@ -641,6 +654,11 @@ export default function ContestPage() {
       if (!byRound || typeof byRound !== 'object') return 0;
       return [1, 2, 3, 4, 5, 6].reduce((sum, r) => sum + (Number(byRound[String(r)]) || 0), 0);
     };
+    const playerHasAnyLiveRound = (playerId) => {
+      const live = scoresLive[String(playerId)];
+      if (!live || typeof live !== 'object') return false;
+      return [1, 2, 3, 4, 5, 6].some((r) => live[String(r)]);
+    };
     const getPlayerById = (id) => playerPool.find((p) => p.id === id);
     const rows = (managers || []).map((name, idx) => {
       const picks = byManager[idx] || [];
@@ -653,16 +671,40 @@ export default function ContestPage() {
       const projectedActiveGames = getMaxGamesForRoster(activePlayers);
       const playedActiveGames = countPlayedGamesForPlayers(activePlayers, scores);
       const maxGames = Math.max(0, projectedActiveGames - playedActiveGames);
+      const hasLiveScores = picks.some((p) =>
+        playerHasAnyLiveRound(p.playerId ?? p.player_id)
+      );
       return {
         managerIndex: idx,
         name,
         points,
         players: playerCount,
         maxGames,
+        hasLiveScores,
       };
     });
     return [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
-  }, [managers, draft, scores, playerPool, teamEliminatedAfterRound]);
+  }, [managers, draft, scores, scoresLive, playerPool, teamEliminatedAfterRound]);
+
+  /** All drafted players in one list, sorted by fantasy points (desc). */
+  const playersGridRows = useMemo(() => {
+    const rows = [];
+    for (const pick of draft || []) {
+      const midx = pick.managerIndex ?? pick.manager_index ?? 0;
+      const pid = pick.playerId ?? pick.player_id;
+      const pl = playerPool.find((p) => p.id === pid);
+      if (!pl) continue;
+      const byRound = scores[String(pl.id)] || {};
+      const total = [1, 2, 3, 4, 5, 6].reduce((s, r) => s + (Number(byRound[String(r)]) || 0), 0);
+      rows.push({
+        pl,
+        managerIndex: midx,
+        managerName: managers[midx] ?? `Manager ${midx + 1}`,
+        total,
+      });
+    }
+    return rows.sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
+  }, [draft, playerPool, scores, managers]);
 
   useEffect(() => {
     if (tab !== TABS.leaderboard) {
@@ -738,6 +780,13 @@ export default function ContestPage() {
           onClick={() => setTab(TABS.leaderboard)}
         >
           Leaderboard
+        </button>
+        <button
+          type="button"
+          className={tab === TABS.players ? 'active' : ''}
+          onClick={() => setTab(TABS.players)}
+        >
+          Players
         </button>
       </nav>
 
@@ -962,7 +1011,16 @@ export default function ContestPage() {
                     onClick={() => setSelectedLeaderboardManager(row.managerIndex)}
                   >
                     <td>{row.name}</td>
-                    <td className="leaderboard-num">{row.points}</td>
+                    <td
+                      className={[
+                        'leaderboard-num',
+                        row.hasLiveScores ? 'leaderboard-round-live' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      {row.points}
+                    </td>
                     <td className="leaderboard-num">{row.players}</td>
                     <td className="leaderboard-num">{row.maxGames}</td>
                   </tr>
@@ -998,6 +1056,9 @@ export default function ContestPage() {
                         const byRound = scores[String(pl.id)] || {};
                         const elimR = getTeamElimRound(pl, teamEliminatedAfterRound);
                         const total = [1, 2, 3, 4, 5, 6].reduce((s, r) => s + (Number(byRound[String(r)]) || 0), 0);
+                        const totalIsLive = [1, 2, 3, 4, 5, 6].some(
+                          (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
+                        );
                         return (
                           <tr key={pl.id}>
                             <td className="leaderboard-player-name">
@@ -1019,17 +1080,37 @@ export default function ContestPage() {
                               const pts = Number(raw);
                               const hasVal = raw != null && raw !== '' && !Number.isNaN(pts);
                               const showX = elimR != null && r > elimR;
+                              const isLive =
+                                !showX &&
+                                hasVal &&
+                                !!(scoresLive[String(pl.id)] || {})[String(r)];
+                              const cellCls = [
+                                'leaderboard-round-num',
+                                showX ? 'leaderboard-round-out' : '',
+                                isLive ? 'leaderboard-round-live' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ');
                               return (
                                 <td
                                   key={r}
-                                  className={showX ? 'leaderboard-round-num leaderboard-round-out' : 'leaderboard-round-num'}
+                                  className={cellCls}
                                   title={showX ? 'Eliminated — no further games' : undefined}
                                 >
                                   {showX ? '×' : (hasVal ? pts : '')}
                                 </td>
                               );
                             })}
-                            <td className="leaderboard-total-col">{total || ''}</td>
+                            <td
+                              className={[
+                                'leaderboard-total-col',
+                                totalIsLive ? 'leaderboard-round-live' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                            >
+                              {total || ''}
+                            </td>
                           </tr>
                         );
                       })
@@ -1038,14 +1119,37 @@ export default function ContestPage() {
                       const roundSums = [1, 2, 3, 4, 5, 6].map((r) =>
                         selectedRosterPlayers.reduce((s, pl) => s + (Number((scores[String(pl.id)] || {})[String(r)]) || 0), 0)
                       );
+                      const roundHasLive = [1, 2, 3, 4, 5, 6].map((r) =>
+                        selectedRosterPlayers.some((pl) => !!(scoresLive[String(pl.id)] || {})[String(r)])
+                      );
                       const rosterTotal = roundSums.reduce((a, b) => a + b, 0);
+                      const totalHasLive = roundHasLive.some(Boolean);
                       return (
                         <tr className="leaderboard-totals-row">
                           <td>Total</td>
                           {roundSums.map((n, i) => (
-                            <td key={i} className="leaderboard-round-num">{n || ''}</td>
+                            <td
+                              key={i}
+                              className={[
+                                'leaderboard-round-num',
+                                roundHasLive[i] ? 'leaderboard-round-live' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                            >
+                              {n || ''}
+                            </td>
                           ))}
-                          <td className="leaderboard-total-col">{rosterTotal || ''}</td>
+                          <td
+                            className={[
+                              'leaderboard-total-col',
+                              totalHasLive ? 'leaderboard-round-live' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
+                            {rosterTotal || ''}
+                          </td>
                         </tr>
                       );
                     })()}
@@ -1054,6 +1158,145 @@ export default function ContestPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === TABS.players && (
+        <div className="players-grid-wrap">
+          <table className="leaderboard-scoring-grid players-grid-table">
+            <thead>
+              <tr>
+                <th className="players-grid-col-player">Player</th>
+                <th className="players-grid-col-team">Team</th>
+                <th className="players-grid-col-pos">Pos</th>
+                <th className="players-grid-col-region">Region</th>
+                <th className="players-grid-col-seed leaderboard-num">Seed</th>
+                <th className="players-grid-col-manager">Manager</th>
+                {[1, 2, 3, 4, 5, 6].map((r) => (
+                  <th key={r} className="leaderboard-round-num">{r}</th>
+                ))}
+                <th className="leaderboard-total-col" title="Total">{isMobile ? 'T' : 'Total'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {playersGridRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6 + NUM_ROUNDS + 1} className="leaderboard-empty">
+                    No drafted players yet
+                  </td>
+                </tr>
+              ) : (
+                <>
+                  {playersGridRows.map(({ pl, managerName }) => {
+                    const byRound = scores[String(pl.id)] || {};
+                    const elimR = getTeamElimRound(pl, teamEliminatedAfterRound);
+                    const rowTotal = [1, 2, 3, 4, 5, 6].reduce(
+                      (s, r) => s + (Number(byRound[String(r)]) || 0),
+                      0
+                    );
+                    const totalIsLive = [1, 2, 3, 4, 5, 6].some(
+                      (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
+                    );
+                    return (
+                      <tr key={pl.id}>
+                        <td className="leaderboard-player-name players-grid-col-player">{pl.name}</td>
+                        <td className="players-grid-col-team">{pl.team_abbreviation || pl.team_name || '—'}</td>
+                        <td className="players-grid-col-pos">{pl.position || '—'}</td>
+                        <td className="players-grid-col-region">
+                          {pl.region && pl.region !== '—' ? (
+                            <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
+                              {pl.region}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="leaderboard-num players-grid-col-seed">
+                          {pl.seed != null && pl.seed !== '' && pl.seed !== '—' ? pl.seed : '—'}
+                        </td>
+                        <td className="players-grid-col-manager">{managerName}</td>
+                        {[1, 2, 3, 4, 5, 6].map((r) => {
+                          const raw = byRound[String(r)];
+                          const pts = Number(raw);
+                          const hasVal = raw != null && raw !== '' && !Number.isNaN(pts);
+                          const showX = elimR != null && r > elimR;
+                          const isLive =
+                            !showX &&
+                            hasVal &&
+                            !!(scoresLive[String(pl.id)] || {})[String(r)];
+                          const cellCls = [
+                            'leaderboard-round-num',
+                            showX ? 'leaderboard-round-out' : '',
+                            isLive ? 'leaderboard-round-live' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ');
+                          return (
+                            <td
+                              key={r}
+                              className={cellCls}
+                              title={showX ? 'Eliminated — no further games' : undefined}
+                            >
+                              {showX ? '×' : (hasVal ? pts : '')}
+                            </td>
+                          );
+                        })}
+                        <td
+                          className={[
+                            'leaderboard-total-col',
+                            totalIsLive ? 'leaderboard-round-live' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        >
+                          {rowTotal || ''}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {(() => {
+                    const roster = playersGridRows.map((x) => x.pl);
+                    const roundSums = [1, 2, 3, 4, 5, 6].map((r) =>
+                      roster.reduce((s, pl) => s + (Number((scores[String(pl.id)] || {})[String(r)]) || 0), 0)
+                    );
+                    const roundHasLive = [1, 2, 3, 4, 5, 6].map((r) =>
+                      roster.some((pl) => !!(scoresLive[String(pl.id)] || {})[String(r)])
+                    );
+                    const grandTotal = roundSums.reduce((a, b) => a + b, 0);
+                    const totalHasLive = roundHasLive.some(Boolean);
+                    return (
+                      <tr className="leaderboard-totals-row">
+                        <td colSpan={6}>Total</td>
+                        {roundSums.map((n, i) => (
+                          <td
+                            key={i}
+                            className={[
+                              'leaderboard-round-num',
+                              roundHasLive[i] ? 'leaderboard-round-live' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
+                            {n || ''}
+                          </td>
+                        ))}
+                        <td
+                          className={[
+                            'leaderboard-total-col',
+                            totalHasLive ? 'leaderboard-round-live' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        >
+                          {grandTotal || ''}
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

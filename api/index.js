@@ -419,6 +419,16 @@ function buildTeamEliminationMap(gameDetails) {
   return out;
 }
 
+/** True when bracket game status means stats may still change (not final / not pre-tip). */
+function isBracketGameLiveForScoring(status) {
+  const st = String(status ?? '').trim().toLowerCase();
+  if (!st) return false;
+  if (st === 'scheduled' || st === 'pre game' || st === 'pregame') return false;
+  if (st === 'postponed' || st === 'canceled' || st === 'cancelled') return false;
+  if (st === 'post' || st === 'final' || st === 'completed' || st === 'complete') return false;
+  return true;
+}
+
 /**
  * Fetches player stats for one game (GOAT tier). Returns array of { player_id, pts }.
  * Uses /player_stats with game_ids; follows cursor pagination so no players are dropped on busy games.
@@ -461,20 +471,26 @@ async function buildScores(apiKey, season = BRACKET_SEASON) {
   }
   const teamEliminatedAfterRound = buildTeamEliminationMap(allGamesDetail);
   const scores = {};
+  const scoresLive = {};
   const statsDone = new Set();
   for (const g of allGamesDetail) {
     if (g.round > 6) continue;
     if (statsDone.has(g.gameId)) continue;
     statsDone.add(g.gameId);
     const rows = await fetchPlayerStatsForGame(apiKey, g.gameId);
+    const markLive = isBracketGameLiveForScoring(g.status);
     for (const { playerId, pts } of rows) {
       const key = String(playerId);
       if (!scores[key]) scores[key] = {};
       scores[key][String(g.round)] = pts;
+      if (markLive) {
+        if (!scoresLive[key]) scoresLive[key] = {};
+        scoresLive[key][String(g.round)] = true;
+      }
     }
     await new Promise((r) => setTimeout(r, 120));
   }
-  return { scores, teamEliminatedAfterRound };
+  return { scores, teamEliminatedAfterRound, scoresLive };
 }
 
 async function runImport(bucket, contestId, apiKey) {
@@ -686,6 +702,7 @@ exports.handler = async (event) => {
           data = {
             scores: built.scores,
             teamEliminatedAfterRound: built.teamEliminatedAfterRound,
+            scoresLive: built.scoresLive ?? {},
             updatedAt: new Date().toISOString(),
           };
           await putS3Json(bucket, cacheKey, data);
@@ -693,6 +710,7 @@ exports.handler = async (event) => {
         return jsonResponse({
           scores: data.scores,
           teamEliminatedAfterRound: data.teamEliminatedAfterRound ?? {},
+          scoresLive: data.scoresLive ?? {},
           updatedAt: data.updatedAt ?? null,
         });
       }
@@ -704,6 +722,7 @@ exports.handler = async (event) => {
         const data = {
           scores: built.scores,
           teamEliminatedAfterRound: built.teamEliminatedAfterRound,
+          scoresLive: built.scoresLive ?? {},
           updatedAt: new Date().toISOString(),
         };
         await putS3Json(bucket, `${prefix}/scores.json`, data);

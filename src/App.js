@@ -158,7 +158,7 @@ function App() {
                 <li>2 100 Milers</li>
                 <li>1 100k World Trail Major finish</li>
                 <li>Savage Camp 6x4x48</li>
-                <li>4 50 Milers</li>
+                <li>5 50 Milers</li>
                 <li>A dozen or so 50k's</li>
                 <li>One 60k / aka 100M DNF</li>
               </ul>
