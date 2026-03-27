@@ -683,7 +683,12 @@ export default function ContestPage() {
         hasLiveScores,
       };
     });
-    return [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+    const sorted = [...rows].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+    const leaderPoints = sorted[0]?.points ?? 0;
+    return sorted.map((row) => ({
+      ...row,
+      pointsBehindLeader: Math.max(0, leaderPoints - (row.points ?? 0)),
+    }));
   }, [managers, draft, scores, scoresLive, playerPool, teamEliminatedAfterRound]);
 
   /** All drafted players in one list, sorted by fantasy points (desc). */
@@ -998,19 +1003,26 @@ export default function ContestPage() {
               <thead>
                 <tr>
                   <th>Manager</th>
-                  <th className="leaderboard-num">Points</th>
-                  <th className="leaderboard-num" title="Players whose teams are still alive">Remaining</th>
-                  <th className="leaderboard-num" title="Max games (bracket projection) for active players only">Max Games</th>
+                  <th className="leaderboard-num">Pts</th>
+                  <th className="leaderboard-num" title="Points Behind Leader">PBL</th>
+                  <th className="leaderboard-num" title="Players Remaining">PR</th>
+                  <th className="leaderboard-num" title="Max Games Remaining">MGR</th>
                 </tr>
               </thead>
               <tbody>
-                {leaderboardRows.map((row) => (
+                {leaderboardRows.map((row, rankIdx) => (
                   <tr
                     key={row.managerIndex}
                     className={selectedLeaderboardManager === row.managerIndex ? 'selected' : ''}
                     onClick={() => setSelectedLeaderboardManager(row.managerIndex)}
                   >
-                    <td>{row.name}</td>
+                    <td>
+                      <span className="leaderboard-manager-name">
+                        {rankIdx === 0 ? <span className="leaderboard-trophy leaderboard-trophy--gold" title="1st place ($300)">🏆</span> : null}
+                        {rankIdx === 1 ? <span className="leaderboard-trophy leaderboard-trophy--silver" title="2nd place ($100)">🏆</span> : null}
+                        {row.name}
+                      </span>
+                    </td>
                     <td
                       className={[
                         'leaderboard-num',
@@ -1020,6 +1032,9 @@ export default function ContestPage() {
                         .join(' ')}
                     >
                       {row.points}
+                    </td>
+                    <td className="leaderboard-num">
+                      {row.pointsBehindLeader > 0 ? `-${row.pointsBehindLeader}` : ''}
                     </td>
                     <td className="leaderboard-num">{row.players}</td>
                     <td className="leaderboard-num">{row.maxGames}</td>

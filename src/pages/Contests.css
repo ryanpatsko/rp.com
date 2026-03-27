@@ -949,6 +949,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.leaderboard-manager-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.leaderboard-trophy {
+  line-height: 1;
+}
+
+.leaderboard-trophy--gold {
+  filter: drop-shadow(0 0 0.18rem rgba(255, 215, 0, 0.55));
+}
+
+.leaderboard-trophy--silver {
+  filter: grayscale(1) brightness(1.25) drop-shadow(0 0 0.18rem rgba(220, 220, 220, 0.5));
+}
+
 .leaderboard-roster-col {
   flex: 0 1 50%;
   min-width: 0;
