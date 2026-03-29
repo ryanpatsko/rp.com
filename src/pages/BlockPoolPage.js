@@ -53,8 +53,29 @@ export default function BlockPoolPage() {
   const [bracketLoading, setBracketLoading] = useState(true);
   const [bracketError, setBracketError] = useState(null);
   const [winnersSubView, setWinnersSubView] = useState(WINNERS_SUBVIEWS.games);
-  /** Blocks tab: custom tooltip anchored to hovered name cell. */
+  /** Blocks tab: custom tooltip anchored to the clicked name cell (opens on tap/click only). */
   const [blockTooltip, setBlockTooltip] = useState(null);
+
+  useEffect(() => {
+    if (tab !== TABS.blocks) setBlockTooltip(null);
+  }, [tab]);
+
+  useEffect(() => {
+    if (!blockTooltip) return undefined;
+    const onPointerDown = (e) => {
+      if (e.target.closest('[data-block-pool-name-cell]')) return;
+      setBlockTooltip(null);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setBlockTooltip(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [blockTooltip]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,8 +122,10 @@ export default function BlockPoolPage() {
           blockNum: line.blockNum,
           name: line.blockName,
           total: 0,
+          wins: 0,
         };
         prev.total += line.amount;
+        prev.wins += 1;
         if (line.blockName && line.blockName !== '—') prev.name = line.blockName;
         byBlock.set(line.blockNum, prev);
       }
@@ -250,10 +273,7 @@ export default function BlockPoolPage() {
           <div
             className="block-pool-board"
             aria-label="Block pool grid"
-            onMouseLeave={() => {
-              setCrosshair(null);
-              setBlockTooltip(null);
-            }}
+            onMouseLeave={() => setCrosshair(null)}
           >
             <div
               className="block-pool-lbl-spacer block-pool-gc"
@@ -339,25 +359,37 @@ export default function BlockPoolPage() {
                 const payoutHits = blockPayoutHitsByBlock.get(blockNum) ?? [];
                 const isNameHovered =
                   crosshair && crosshair.rowIdx === rowIdx && crosshair.colIdx === colIdx;
+                const tooltipOpen = blockTooltip && blockTooltip.blockNum === blockNum;
                 return (
                   <div
                     key={blockNum}
+                    role="button"
+                    tabIndex={0}
+                    data-block-pool-name-cell
                     className={[
                       'block-pool-name-cell',
                       isNameHovered && 'block-pool-name-cell--hovered',
+                      tooltipOpen && 'block-pool-name-cell--tooltip-open',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                     style={{ gridColumn: 8 + colIdx, gridRow: BOTTOM_ROW_START + rowIdx }}
-                    aria-describedby={
-                      blockTooltip && blockTooltip.blockNum === blockNum
-                        ? 'block-pool-tt'
-                        : undefined
-                    }
-                    onMouseEnter={(e) => {
-                      setCrosshair({ rowIdx, colIdx });
+                    aria-describedby={tooltipOpen ? 'block-pool-tt' : undefined}
+                    aria-expanded={tooltipOpen}
+                    onMouseEnter={() => setCrosshair({ rowIdx, colIdx })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (blockTooltip?.blockNum === blockNum) {
+                        setBlockTooltip(null);
+                        return;
+                      }
                       const rect = e.currentTarget.getBoundingClientRect();
-                      const placeBelow = rect.top < 132;
+                      const estH = 260;
+                      const margin = 12;
+                      const spaceBelow = window.innerHeight - rect.bottom - margin;
+                      const spaceAbove = rect.top - margin;
+                      const placeBelow =
+                        spaceBelow >= estH || spaceBelow >= spaceAbove;
                       setBlockTooltip({
                         blockNum,
                         name,
@@ -366,7 +398,11 @@ export default function BlockPoolPage() {
                         placeBelow,
                       });
                     }}
-                    onMouseLeave={() => setBlockTooltip(null)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                      e.preventDefault();
+                      e.currentTarget.click();
+                    }}
                   >
                     <span className="block-pool-name-text">{name}</span>
                     {payoutHits.length > 0 ? (
@@ -513,6 +549,9 @@ export default function BlockPoolPage() {
                     <thead>
                       <tr>
                         <th scope="col">Entry</th>
+                        <th scope="col" className="block-pool-winners-col-wins">
+                          Wins
+                        </th>
                         <th scope="col" className="block-pool-winners-col-total">
                           Total won
                         </th>
@@ -521,7 +560,7 @@ export default function BlockPoolPage() {
                     <tbody>
                       {payoutTotals.length === 0 ? (
                         <tr>
-                          <td colSpan={2} className="block-pool-winners-empty-payouts">
+                          <td colSpan={3} className="block-pool-winners-empty-payouts">
                             No matched blocks yet — totals appear when winning blocks resolve for
                             finalized games.
                           </td>
@@ -530,6 +569,7 @@ export default function BlockPoolPage() {
                         payoutTotals.map((row) => (
                           <tr key={row.blockNum}>
                             <td>{row.name}</td>
+                            <td className="block-pool-winners-col-wins">{row.wins}</td>
                             <td className="block-pool-winners-col-total block-pool-winners-payout-amt">
                               {usd0.format(row.total)}
                             </td>
