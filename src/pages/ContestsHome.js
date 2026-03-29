@@ -50,8 +50,29 @@ export default function ContestsHome() {
             </span>
             {' '}2026 March Madness Player Pool
           </h2>
-          <p>Draft board and team lineups for the 2026 contest.</p>
+          <p>Draft board and team rosters for the 2026 contest.</p>
         </Link>
+
+        <Link to="/contests/block/2026" className="contests-card">
+          <h2>
+            <span className="contests-card-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="cardIconGradGrid" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#4facfe" />
+                    <stop offset="100%" stopColor="#00f2fe" />
+                  </linearGradient>
+                </defs>
+                <rect x="3" y="3" width="18" height="18" rx="2" stroke="url(#cardIconGradGrid)" strokeWidth="1.5" fill="none" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" stroke="url(#cardIconGradGrid)" strokeWidth="1.2" />
+              </svg>
+            </span>
+            {' '}2026 March Madness Block Pool
+          </h2>
+          <p>View blocks and winners for the 2026 contest.</p>
+        </Link>
+
+        <hr className="contests-home-divider" />
 
         <div className="contests-card contests-admin-card">
           <h2>

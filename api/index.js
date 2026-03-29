@@ -342,6 +342,35 @@ function parseBracketAllGames(bracketResponse, defaultRound = null) {
  * Rich bracket game for elimination (BallDontLie rounds 1–7; 7 = championship).
  * home_team / away_team include winner + score when the game is final.
  */
+function teamLabelFromBracket(t) {
+  if (!t) return null;
+  return t.full_name ?? t.college ?? t.name ?? t.abbreviation ?? null;
+}
+
+/** Short school name for UI (e.g. "Duke" not "Duke Blue Devils"). */
+function teamShortLabelFromBracket(t) {
+  if (!t) return null;
+  const college = t.college != null ? String(t.college).trim() : '';
+  if (college) {
+    const cp = college.split(/\s+/).filter(Boolean);
+    const last = cp[cp.length - 1] || '';
+    if (cp.length > 1 && /^(university|college)$/i.test(last)) {
+      return cp.slice(0, -1).join(' ') || cp[0];
+    }
+    return cp[0] || college;
+  }
+  const full = t.full_name ?? t.name;
+  if (full) {
+    const parts = String(full).trim().split(/\s+/);
+    const a0 = (parts[0] || '').toLowerCase();
+    if ((a0 === 'st.' || a0 === 'st') && parts.length >= 2) {
+      return `${parts[0]} ${parts[1]}`;
+    }
+    return parts[0] || null;
+  }
+  return t.abbreviation != null ? String(t.abbreviation) : null;
+}
+
 function parseBracketGameDetail(g, defaultRound = null) {
   const gameId = g.game_id ?? g.id;
   let round = Number(g.round);
@@ -357,6 +386,13 @@ function parseBracketGameDetail(g, defaultRound = null) {
     round,
     homeId,
     awayId,
+    homeName: teamLabelFromBracket(home),
+    awayName: teamLabelFromBracket(away),
+    homeShortName: teamShortLabelFromBracket(home),
+    awayShortName: teamShortLabelFromBracket(away),
+    homeAbbr: home?.abbreviation ?? null,
+    awayAbbr: away?.abbreviation ?? null,
+    bracketLocation: g.bracket_location != null ? String(g.bracket_location).trim() || null : null,
     homeWinner: home?.winner,
     awayWinner: away?.winner,
     homeScore: home?.score != null ? Number(home.score) : (g.home_score != null ? Number(g.home_score) : null),
@@ -390,6 +426,127 @@ function parseBracketAllGamesDetail(bracketResponse, defaultRound = null) {
   }
 
   return out;
+}
+
+function regionFromTeamLookup(name, abbr) {
+  if (abbr && teamToRegion[abbr]) return teamToRegion[abbr];
+  if (name && teamToRegion[name]) return teamToRegion[name];
+  if (!name) return null;
+  const trimmed = String(name).trim();
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  for (let i = parts.length; i >= 1; i--) {
+    const cand = parts.slice(0, i).join(' ');
+    if (teamToRegion[cand]) return teamToRegion[cand];
+  }
+  let best = null;
+  let bestLen = 0;
+  for (const k of Object.keys(teamToRegion)) {
+    if (trimmed === k || trimmed.startsWith(`${k} `)) {
+      if (k.length > bestLen) {
+        bestLen = k.length;
+        best = teamToRegion[k];
+      }
+    }
+  }
+  return best;
+}
+
+/** True when bracket_location looks like a seed/slot (not "East" / "West" etc.). */
+function isBracketLocationSeedLike(loc) {
+  if (loc == null) return true;
+  const s = String(loc).trim();
+  if (!s) return true;
+  if (/^\d+$/.test(s)) return true;
+  return false;
+}
+
+/**
+ * Region for UI: team→region map (handles full API names like "Duke Blue Devils");
+ * prefer winner’s region when teams differ; ignore numeric bracket_location (seed).
+ */
+function resolveBracketGameRegion(detail, winnerIsHome) {
+  const winReg = winnerIsHome
+    ? (regionFromTeamLookup(detail.homeName, detail.homeAbbr)
+      || regionFromTeamLookup(detail.homeShortName, null))
+    : (regionFromTeamLookup(detail.awayName, detail.awayAbbr)
+      || regionFromTeamLookup(detail.awayShortName, null));
+  const loseReg = winnerIsHome
+    ? (regionFromTeamLookup(detail.awayName, detail.awayAbbr)
+      || regionFromTeamLookup(detail.awayShortName, null))
+    : (regionFromTeamLookup(detail.homeName, detail.homeAbbr)
+      || regionFromTeamLookup(detail.homeShortName, null));
+  if (winReg && loseReg && winReg === loseReg) return winReg;
+  if (winReg) return winReg;
+  if (loseReg) return loseReg;
+  if (detail.bracketLocation && !isBracketLocationSeedLike(detail.bracketLocation)) {
+    return detail.bracketLocation;
+  }
+  return '—';
+}
+
+function isBracketGameFinalDetail(d) {
+  if (d.homeWinner === true && d.awayWinner === false) return true;
+  if (d.awayWinner === true && d.homeWinner === false) return true;
+  const st = String(d.status || '').toLowerCase();
+  if (st === 'post' || st === 'final' || st === 'completed' || st === 'complete') {
+    return d.homeScore != null && d.awayScore != null
+      && !Number.isNaN(d.homeScore) && !Number.isNaN(d.awayScore);
+  }
+  return false;
+}
+
+function getWinnerLoserFromDetail(d) {
+  if (!isBracketGameFinalDetail(d)) return null;
+  let winHome = null;
+  if (d.homeWinner === true && d.awayWinner === false) winHome = true;
+  else if (d.awayWinner === true && d.homeWinner === false) winHome = false;
+  else if (d.homeScore != null && d.awayScore != null) {
+    if (d.homeScore > d.awayScore) winHome = true;
+    else if (d.awayScore > d.homeScore) winHome = false;
+    else return null;
+  } else return null;
+
+  if (winHome) {
+    return {
+      winnerName: d.homeShortName || d.homeName || (d.homeId != null ? `Team ${d.homeId}` : '—'),
+      loserName: d.awayShortName || d.awayName || (d.awayId != null ? `Team ${d.awayId}` : '—'),
+      winnerScore: d.homeScore,
+      loserScore: d.awayScore,
+      winnerIsHome: true,
+    };
+  }
+  return {
+    winnerName: d.awayShortName || d.awayName || (d.awayId != null ? `Team ${d.awayId}` : '—'),
+    loserName: d.homeShortName || d.homeName || (d.homeId != null ? `Team ${d.homeId}` : '—'),
+    winnerScore: d.awayScore,
+    loserScore: d.homeScore,
+    winnerIsHome: false,
+  };
+}
+
+/** Finalized tournament games (BallDontLie rounds 1–6 only) for block pool / results UI. */
+function buildBracketFinalResults(allGamesDetail) {
+  const byId = new Map();
+  for (const g of allGamesDetail) {
+    if (g.round < 1 || g.round > 6) continue;
+    const wl = getWinnerLoserFromDetail(g);
+    if (!wl) continue;
+    byId.set(g.gameId, {
+      gameId: g.gameId,
+      round: g.round,
+      region: resolveBracketGameRegion(g, wl.winnerIsHome),
+      winnerName: wl.winnerName,
+      loserName: wl.loserName,
+      winnerScore: wl.winnerScore,
+      loserScore: wl.loserScore,
+    });
+  }
+  return Array.from(byId.values()).sort((a, b) => {
+    if (a.round !== b.round) return a.round - b.round;
+    const reg = String(a.region).localeCompare(String(b.region));
+    if (reg !== 0) return reg;
+    return a.gameId - b.gameId;
+  });
 }
 
 /** teamId (string key) -> eliminated after this bracket round (lost that game). */
@@ -490,7 +647,8 @@ async function buildScores(apiKey, season = BRACKET_SEASON) {
     }
     await new Promise((r) => setTimeout(r, 120));
   }
-  return { scores, teamEliminatedAfterRound, scoresLive };
+  const bracketGamesFinal = buildBracketFinalResults(allGamesDetail);
+  return { scores, teamEliminatedAfterRound, scoresLive, bracketGamesFinal };
 }
 
 async function runImport(bucket, contestId, apiKey) {
@@ -697,12 +855,13 @@ exports.handler = async (event) => {
       if (method === 'GET') {
         const cacheKey = `${prefix}/scores.json`;
         let data = await getS3Json(bucket, cacheKey);
-        if (!data || !data.scores) {
+        if (!data || !data.scores || !Array.isArray(data.bracketGamesFinal)) {
           const built = await buildScores(apiKey);
           data = {
             scores: built.scores,
             teamEliminatedAfterRound: built.teamEliminatedAfterRound,
             scoresLive: built.scoresLive ?? {},
+            bracketGamesFinal: built.bracketGamesFinal ?? [],
             updatedAt: new Date().toISOString(),
           };
           await putS3Json(bucket, cacheKey, data);
@@ -711,6 +870,7 @@ exports.handler = async (event) => {
           scores: data.scores,
           teamEliminatedAfterRound: data.teamEliminatedAfterRound ?? {},
           scoresLive: data.scoresLive ?? {},
+          bracketGamesFinal: data.bracketGamesFinal ?? [],
           updatedAt: data.updatedAt ?? null,
         });
       }
@@ -723,6 +883,7 @@ exports.handler = async (event) => {
           scores: built.scores,
           teamEliminatedAfterRound: built.teamEliminatedAfterRound,
           scoresLive: built.scoresLive ?? {},
+          bracketGamesFinal: built.bracketGamesFinal ?? [],
           updatedAt: new Date().toISOString(),
         };
         await putS3Json(bucket, `${prefix}/scores.json`, data);

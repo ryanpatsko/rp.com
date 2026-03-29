@@ -85,9 +85,14 @@
   font-size: 0.95rem;
 }
 
-.contests-main .contests-card + .contests-card,
-.contests-main .contests-admin-card {
+.contests-main .contests-card + .contests-card {
   margin-top: 1.5rem;
+}
+
+.contests-home-divider {
+  border: none;
+  border-top: 1px solid rgba(79, 172, 254, 0.22);
+  margin: 2.5rem 0 1.75rem;
 }
 
 .contests-admin-card {
@@ -1443,4 +1448,639 @@
 .admin-draft-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* --- March Madness Block Pool: single grid --- */
+.block-pool-wrap {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto 2rem;
+  overflow-x: auto;
+}
+
+.block-pool-board {
+  --bp-losing-lbl-w: minmax(1.85rem, 2.35rem);
+  --bp-cell-min-h: 2.45rem;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  /* Narrow label + 6 equal digit/diag cols + 10 equal name/digit cols (full contest width) */
+  grid-template-columns:
+    var(--bp-losing-lbl-w) repeat(6, minmax(0, 1fr)) repeat(10, minmax(0, 1fr));
+  /* Banner row + 16 equal-height body rows (6 bracket + 10 pool) */
+  grid-template-rows:
+    minmax(2.15rem, auto)
+    repeat(16, minmax(var(--bp-cell-min-h), 1fr));
+  gap: 0;
+  min-height: clamp(28rem, 72vh, 56rem);
+  border: 1px solid rgba(79, 172, 254, 0.35);
+  box-shadow: 0 0 24px rgba(79, 172, 254, 0.12);
+  background: #0c0e12;
+}
+
+.block-pool-gc {
+  min-width: 0;
+}
+
+.block-pool-lbl-spacer {
+  background: linear-gradient(180deg, rgba(79, 172, 254, 0.12) 0%, rgba(15, 15, 18, 0.95) 100%);
+  border-right: 1px solid rgba(79, 172, 254, 0.28);
+  border-bottom: 1px solid rgba(79, 172, 254, 0.2);
+}
+
+.block-pool-diag-banner-pad {
+  background: #0c0e12;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  min-height: 2.15rem;
+}
+
+.block-pool-round-diag-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.22);
+  min-height: 2.4rem;
+  box-sizing: border-box;
+}
+
+.block-pool-diag--label {
+  font-size: clamp(0.82rem, 2.4vw, 1.12rem);
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.block-pool-diag--label .block-pool-round-diag-label-text {
+  line-height: 1;
+}
+
+/* Round colors: vibrant jewel / electric mix (not spectral / not monochrome) R6→R1 */
+/* R6 — bright cyan-blue (not teal) */
+.block-pool-tone-r6-label { background: linear-gradient(145deg, #7dd3fc 0%, #0284c7 100%); color: #082f49; border-bottom: 1px solid rgba(12, 74, 110, 0.45); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.block-pool-tone-r6-row {
+  background: linear-gradient(90deg, rgba(125, 211, 252, 0.44) 0%, rgba(2, 132, 199, 0.32) 100%);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.38);
+}
+.block-pool-tone-r6-col {
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.4) 0%, rgba(3, 105, 161, 0.28) 100%);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.34);
+}
+
+/* R5 — vivid violet */
+.block-pool-tone-r5-label { background: linear-gradient(145deg, #c4b5fd 0%, #6d28d9 100%); color: #1e0a3a; border-bottom: 1px solid rgba(76, 29, 149, 0.45); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.22); }
+.block-pool-tone-r5-row {
+  background: linear-gradient(90deg, rgba(196, 181, 253, 0.46) 0%, rgba(109, 40, 217, 0.34) 100%);
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.42);
+}
+.block-pool-tone-r5-col {
+  background: linear-gradient(180deg, rgba(196, 181, 253, 0.42) 0%, rgba(91, 33, 182, 0.3) 100%);
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.36);
+}
+
+/* R4 — hot coral */
+.block-pool-tone-r4-label { background: linear-gradient(145deg, #fda4af 0%, #e11d48 100%); color: #450a0a; border-bottom: 1px solid rgba(136, 19, 55, 0.45); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3); }
+.block-pool-tone-r4-row {
+  background: linear-gradient(90deg, rgba(253, 164, 175, 0.44) 0%, rgba(225, 29, 72, 0.32) 100%);
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.42);
+}
+.block-pool-tone-r4-col {
+  background: linear-gradient(180deg, rgba(253, 164, 175, 0.4) 0%, rgba(190, 18, 60, 0.28) 100%);
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.36);
+}
+
+/* R3 — bright amber */
+.block-pool-tone-r3-label { background: linear-gradient(145deg, #fde047 0%, #ca8a04 100%); color: #422006; border-bottom: 1px solid rgba(120, 80, 0, 0.45); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45); }
+.block-pool-tone-r3-row {
+  background: linear-gradient(90deg, rgba(253, 224, 71, 0.5) 0%, rgba(202, 138, 4, 0.36) 100%);
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.48);
+}
+.block-pool-tone-r3-col {
+  background: linear-gradient(180deg, rgba(253, 224, 71, 0.45) 0%, rgba(180, 120, 0, 0.32) 100%);
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.42);
+}
+
+/* R2 — tangerine */
+.block-pool-tone-r2-label { background: linear-gradient(145deg, #fdba74 0%, #ea580c 100%); color: #431407; border-bottom: 1px solid rgba(154, 52, 18, 0.45); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.28); }
+.block-pool-tone-r2-row {
+  background: linear-gradient(90deg, rgba(253, 186, 116, 0.48) 0%, rgba(234, 88, 12, 0.34) 100%);
+  box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.44);
+}
+.block-pool-tone-r2-col {
+  background: linear-gradient(180deg, rgba(253, 186, 116, 0.42) 0%, rgba(194, 65, 12, 0.3) 100%);
+  box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.38);
+}
+
+/* R1 — chartreuse / neon lime */
+.block-pool-tone-r1-label { background: linear-gradient(145deg, #d9f99d 0%, #65a30d 100%); color: #1a2e05; border-bottom: 1px solid rgba(63, 98, 18, 0.45); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.block-pool-tone-r1-row {
+  background: linear-gradient(90deg, rgba(217, 249, 157, 0.46) 0%, rgba(101, 163, 13, 0.34) 100%);
+  box-shadow: inset 0 0 0 1px rgba(132, 204, 22, 0.45);
+}
+.block-pool-tone-r1-col {
+  background: linear-gradient(180deg, rgba(217, 249, 157, 0.42) 0%, rgba(77, 124, 15, 0.3) 100%);
+  box-shadow: inset 0 0 0 1px rgba(132, 204, 22, 0.4);
+}
+
+.block-pool-axis-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.block-pool-axis-label--winning {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.45rem 0.35rem;
+  background: linear-gradient(90deg, #22c55e 0%, #4ade80 55%, #86efac 100%);
+  color: #052e14;
+  border-right: 1px solid rgba(6, 78, 35, 0.45);
+  border-bottom: 1px solid rgba(6, 78, 35, 0.45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+}
+
+.block-pool-winning-digit-row {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  border-right: 1px solid rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.28);
+  min-height: 2.4rem;
+}
+
+.block-pool-digit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.block-pool-winning-digit-row .block-pool-digit:first-child {
+  border-left: none;
+}
+
+.block-pool-losing-label-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 45%, #7f1d1d 100%);
+  border-right: 1px solid rgba(127, 29, 29, 0.85);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 0 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.block-pool-axis-label--losing {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #fff5f5;
+  white-space: nowrap;
+  text-shadow:
+    0 0 14px rgba(254, 202, 202, 0.95),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.block-pool-digit--losing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  border-right: 1px solid rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.22);
+}
+
+.block-pool-name-cell {
+  border-right: 1px solid rgba(79, 172, 254, 0.18);
+  border-bottom: 1px solid rgba(79, 172, 254, 0.14);
+  padding: 0.2rem 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  text-align: center;
+  background: linear-gradient(145deg, #1a1d22 0%, #14161a 100%);
+  transition: background 0.12s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block-pool-name-cell {
+    transition: none;
+  }
+}
+
+.block-pool-name-cell--hovered {
+  background: linear-gradient(145deg, #2d3544 0%, #242b38 100%);
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.35);
+}
+
+.block-pool-digit--crosshair {
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    inset 0 0 0 9999px rgba(255, 255, 255, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.block-pool-name-text {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: #f0f0f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.block-pool-win-icons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem 0.12rem;
+  max-width: 100%;
+  line-height: 1;
+}
+
+/* Match jewel tones from .block-pool-tone-rN-col (winning-side column strips). */
+.block-pool-win-icon {
+  font-size: 0.48rem;
+  font-weight: 800;
+}
+
+.block-pool-win-icon--r6 {
+  color: #7dd3fc;
+  text-shadow: 0 0 7px rgba(56, 189, 248, 0.75);
+}
+
+.block-pool-win-icon--r5 {
+  color: #c4b5fd;
+  text-shadow: 0 0 7px rgba(167, 139, 250, 0.72);
+}
+
+.block-pool-win-icon--r4 {
+  color: #fda4af;
+  text-shadow: 0 0 7px rgba(251, 113, 133, 0.75);
+}
+
+.block-pool-win-icon--r3 {
+  color: #fde047;
+  text-shadow: 0 0 7px rgba(234, 179, 8, 0.75);
+}
+
+.block-pool-win-icon--r2 {
+  color: #fdba74;
+  text-shadow: 0 0 7px rgba(251, 146, 60, 0.72);
+}
+
+.block-pool-win-icon--r1 {
+  color: #bef264;
+  text-shadow: 0 0 7px rgba(132, 204, 22, 0.72);
+}
+
+/* Custom hover card for block name cells (portal to body; not browser title) */
+.block-pool-block-tooltip {
+  min-width: 12rem;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+  padding: 0.65rem 0.75rem 0.7rem;
+  border-radius: 10px;
+  background: linear-gradient(165deg, rgba(28, 32, 40, 0.98) 0%, rgba(14, 16, 20, 0.99) 100%);
+  border: 1px solid rgba(79, 172, 254, 0.45);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 0 28px rgba(59, 130, 246, 0.12);
+  color: #e5e7eb;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.block-pool-block-tooltip__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.45rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+.block-pool-block-tooltip__name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #f8fafc;
+}
+
+.block-pool-block-tooltip__block-num {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #93c5fd;
+}
+
+.block-pool-block-tooltip__empty {
+  margin: 0.15rem 0 0;
+  color: #9ca3af;
+  font-size: 0.76rem;
+}
+
+.block-pool-block-tooltip__hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(14rem, 38vh);
+  overflow-y: auto;
+}
+
+.block-pool-block-tooltip__hit {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.block-pool-block-tooltip__hit:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.block-pool-block-tooltip__hit:first-child {
+  padding-top: 0.1rem;
+}
+
+.block-pool-block-tooltip__hit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.28rem;
+}
+
+.block-pool-block-tooltip__rnd {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.12rem 0.38rem;
+  border-radius: 4px;
+}
+
+.block-pool-block-tooltip__rnd--r6 {
+  background: rgba(125, 211, 252, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.block-pool-block-tooltip__rnd--r5 {
+  background: rgba(196, 181, 253, 0.2);
+  color: #c4b5fd;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+}
+
+.block-pool-block-tooltip__rnd--r4 {
+  background: rgba(253, 164, 175, 0.18);
+  color: #fda4af;
+  border: 1px solid rgba(251, 113, 133, 0.35);
+}
+
+.block-pool-block-tooltip__rnd--r3 {
+  background: rgba(253, 224, 71, 0.16);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.block-pool-block-tooltip__rnd--r2 {
+  background: rgba(253, 186, 116, 0.18);
+  color: #fdba74;
+  border: 1px solid rgba(251, 146, 60, 0.38);
+}
+
+.block-pool-block-tooltip__rnd--r1 {
+  background: rgba(190, 242, 100, 0.14);
+  color: #bef264;
+  border: 1px solid rgba(132, 204, 22, 0.38);
+}
+
+.block-pool-block-tooltip__amt {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #86efac;
+}
+
+.block-pool-block-tooltip__kind {
+  font-size: 0.68rem;
+  color: #a5b4fc;
+  margin-left: auto;
+}
+
+.block-pool-block-tooltip__game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 0.72rem;
+  color: #d1d5db;
+}
+
+.block-pool-block-tooltip__matchup {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.block-pool-block-tooltip__vs {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.block-pool-block-tooltip__score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #f0f9ff;
+  white-space: nowrap;
+}
+
+.block-pool-winners {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0 2.5rem;
+}
+
+.block-pool-winners-status {
+  color: #a78bfa;
+  margin: 0 0 0.75rem;
+}
+
+.block-pool-winners-error {
+  color: #f87171;
+  margin: 0 0 0.75rem;
+}
+
+.block-pool-winners-empty {
+  color: #888;
+  margin: 1rem 0;
+}
+
+.block-pool-winners-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgba(79, 172, 254, 0.25);
+  border-radius: 8px;
+  background: rgba(12, 14, 18, 0.85);
+}
+
+.block-pool-winners-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  color: #e5e7eb;
+}
+
+.block-pool-winners-table th,
+.block-pool-winners-table td {
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.block-pool-winners-table th {
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #93c5fd;
+  background: rgba(79, 172, 254, 0.08);
+}
+
+.block-pool-winners-table th.block-pool-winners-col-round,
+.block-pool-winners-table td.block-pool-winners-col-round {
+  text-align: center;
+  width: 4rem;
+}
+
+.block-pool-winners-table th.block-pool-winners-col-score,
+.block-pool-winners-table td.block-pool-winners-score {
+  text-align: center;
+}
+
+.block-pool-winners-table tbody tr:hover {
+  background: rgba(147, 197, 253, 0.06);
+}
+
+.block-pool-winners-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.block-pool-winners-score {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.block-pool-winners-payout-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.block-pool-winners-payout-list li {
+  margin: 0.15rem 0;
+  line-height: 1.35;
+  font-size: 0.82rem;
+}
+
+.block-pool-winners-payout-name {
+  color: #e5e7eb;
+}
+
+.block-pool-winners-payout-miss {
+  color: #6b7280;
+}
+
+.block-pool-winners-payout-amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #4ade80;
+}
+
+.block-pool-winners-subtabs {
+  display: inline-flex;
+  margin: 0 0 0.85rem;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(12, 14, 18, 0.9);
+  border: 1px solid rgba(79, 172, 254, 0.28);
+  gap: 2px;
+}
+
+.block-pool-winners-subtabs-btn {
+  margin: 0;
+  padding: 0.4rem 1rem;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  background: transparent;
+  color: #9ca3af;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.block-pool-winners-subtabs-btn:hover {
+  color: #e5e7eb;
+}
+
+.block-pool-winners-subtabs-btn.active {
+  background: rgba(79, 172, 254, 0.28);
+  color: #f0f9ff;
+  box-shadow: 0 0 0 1px rgba(147, 197, 253, 0.2);
+}
+
+.block-pool-winners-table--payouts th.block-pool-winners-col-total,
+.block-pool-winners-table--payouts td.block-pool-winners-col-total {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.block-pool-winners-empty-payouts {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.88rem;
+  padding: 1.25rem 0.75rem !important;
+}
+
+@media (max-width: 767px) {
+  .block-pool-board {
+    --bp-losing-lbl-w: minmax(1.45rem, 1.85rem);
+    --bp-cell-min-h: 2.2rem;
+    min-height: clamp(24rem, 58vh, 44rem);
+  }
+
+  .block-pool-digit {
+    font-size: 0.9rem;
+  }
+
+  .block-pool-name-text {
+    font-size: 0.6rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .block-pool-win-icon {
+    font-size: 0.4rem;
+  }
 }

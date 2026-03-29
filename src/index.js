@@ -7,6 +7,7 @@ import ContestsNoIndexLayout from './ContestsNoIndexLayout';
 import ContestsHome from './pages/ContestsHome';
 import ContestPage from './pages/ContestPage';
 import AdminPage from './pages/AdminPage';
+import BlockPoolPage from './pages/BlockPoolPage';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -19,6 +20,7 @@ root.render(
           <Route index element={<ContestsHome />} />
           <Route path="pp/:contestId" element={<ContestPage />} />
           <Route path="pp/:contestId/admin" element={<AdminPage />} />
+          <Route path="block/:year" element={<BlockPoolPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

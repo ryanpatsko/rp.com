@@ -6,6 +6,7 @@ import { AgGridProvider } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 import * as contestApi from '../contestApi';
+import { regionSlug, RegionPill } from '../RegionPill';
 import './Contests.css';
 
 const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard', players: 'players' };
@@ -227,17 +228,6 @@ function buildBracketScenarios() {
 }
 
 const BRACKET_SCENARIOS = buildBracketScenarios();
-
-function regionSlug(region) {
-  if (!region || region === '—') return '';
-  return String(region).toLowerCase().replace(/\s+/g, '-');
-}
-
-function RegionPill({ region }) {
-  const slug = regionSlug(region);
-  if (!slug) return <>{region ?? '—'}</>;
-  return <span className={`draft-region-pill draft-region-pill--${slug}`}>{region}</span>;
-}
 
 function MultiSelectDropdown({ options, selected, onChange, placeholder, ariaLabel, id }) {
   const [open, setOpen] = useState(false);
