@@ -114,6 +114,60 @@ export function getBlockPayoutLinesForGame(round, winnerScore, loserScore) {
   });
 }
 
+/** Games per NCAA round (1–6); First Four excluded (standard 67-game bracket from round of 64). */
+export const BRACKET_GAMES_PER_ROUND = {
+  1: 32,
+  2: 16,
+  3: 8,
+  4: 4,
+  5: 2,
+  6: 1,
+};
+
+function payoutScheduleRoundLabel(round, kind) {
+  if (kind === 'main') return String(round);
+  if (kind === 'rev') return `${round} (rev)`;
+  if (kind === 'half') return `${round} (half)`;
+  if (kind === 'halfRev') return `${round} (half rev)`;
+  return String(round);
+}
+
+/**
+ * Rows for the payout schedule table (per-game amount × games in that round).
+ * @returns {{ rows: Array<{ roundLabel: string, perGame: number, payouts: number, total: number }>, totalPayouts: number, totalDollars: number }}
+ */
+export function getBlockPoolPayoutSchedule() {
+  const rows = [];
+  for (let round = 1; round <= 6; round += 1) {
+    const games = BRACKET_GAMES_PER_ROUND[round];
+    const lines = ROUND_PAYOUT_LINES[round];
+    if (!lines) continue;
+    for (const line of lines) {
+      rows.push({
+        roundLabel: payoutScheduleRoundLabel(round, line.kind),
+        perGame: line.amount,
+        payouts: games,
+        total: line.amount * games,
+      });
+    }
+  }
+  const totalPayouts = rows.reduce((s, r) => s + r.payouts, 0);
+  const totalDollars = rows.reduce((s, r) => s + r.total, 0);
+  return { rows, totalPayouts, totalDollars };
+}
+
+/** Main payout line for the R1–R6 diagonal; asterisk when the round also has rev / half lines. */
+export function getRoundMainPayoutDisplay(round) {
+  const lines = ROUND_PAYOUT_LINES[round];
+  if (!lines?.length) return null;
+  const mainLine = lines.find((l) => l.kind === 'main');
+  const main = mainLine ?? lines[0];
+  return {
+    amount: main.amount,
+    showAsterisk: lines.length > 1,
+  };
+}
+
 /** Block number (1–100) → entry name */
 export const BLOCK_ENTRIES = {
   1: 'Adam Sondej',

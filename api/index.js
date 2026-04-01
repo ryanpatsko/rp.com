@@ -508,16 +508,16 @@ function getWinnerLoserFromDetail(d) {
 
   if (winHome) {
     return {
-      winnerName: d.homeShortName || d.homeName || (d.homeId != null ? `Team ${d.homeId}` : '—'),
-      loserName: d.awayShortName || d.awayName || (d.awayId != null ? `Team ${d.awayId}` : '—'),
+      winnerName: d.homeName || d.homeShortName || (d.homeId != null ? `Team ${d.homeId}` : '—'),
+      loserName: d.awayName || d.awayShortName || (d.awayId != null ? `Team ${d.awayId}` : '—'),
       winnerScore: d.homeScore,
       loserScore: d.awayScore,
       winnerIsHome: true,
     };
   }
   return {
-    winnerName: d.awayShortName || d.awayName || (d.awayId != null ? `Team ${d.awayId}` : '—'),
-    loserName: d.homeShortName || d.homeName || (d.homeId != null ? `Team ${d.homeId}` : '—'),
+    winnerName: d.awayName || d.awayShortName || (d.awayId != null ? `Team ${d.awayId}` : '—'),
+    loserName: d.homeName || d.homeShortName || (d.homeId != null ? `Team ${d.homeId}` : '—'),
     winnerScore: d.awayScore,
     loserScore: d.homeScore,
     winnerIsHome: false,

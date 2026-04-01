@@ -10,8 +10,12 @@ import {
   LOSING_DIGITS_BY_ROUND,
   BLOCK_ENTRIES,
   getBlockPayoutLinesForGame,
+  getBlockPoolPayoutSchedule,
+  getRoundMainPayoutDisplay,
 } from '../data/blockPool2026';
 import './Contests.css';
+
+const BLOCK_POOL_PAYOUT_SCHEDULE = getBlockPoolPayoutSchedule();
 
 const TABS = { blocks: 'blocks', winners: 'winners' };
 const WINNERS_SUBVIEWS = { games: 'games', payouts: 'payouts' };
@@ -295,19 +299,48 @@ export default function BlockPoolPage() {
               Winning team
             </div>
 
-            {ROUND_ORDER.map((round, rowIdx) => (
+            {ROUND_ORDER.map((round, rowIdx) => {
+              const mainPay = getRoundMainPayoutDisplay(round);
+              return (
               <React.Fragment key={`dr-${round}`}>
                 {Array.from({ length: 6 }, (_, colIdx) => (
                   <div
                     key={`d-${rowIdx}-${colIdx}`}
                     className={diagonalCellClass(rowIdx, colIdx)}
                     style={{ gridColumn: 2 + colIdx, gridRow: 2 + rowIdx }}
-                    title={rowIdx === colIdx ? `Round ${round}` : undefined}
+                    title={
+                      rowIdx === colIdx
+                        ? `Round ${round}${
+                            mainPay
+                              ? ` — main payout ${usd0.format(mainPay.amount)}${
+                                  mainPay.showAsterisk
+                                    ? ' (* reverse / extra lines in table below)'
+                                    : ''
+                                }`
+                              : ''
+                          }`
+                        : undefined
+                    }
                   >
                     {rowIdx === colIdx ? (
-                      <span className="block-pool-round-diag-label-text">
-                        R
-                        {round}
+                      <span className="block-pool-round-diag-stack">
+                        <span className="block-pool-round-diag-label-text">
+                          R
+                          {round}
+                        </span>
+                        {mainPay ? (
+                          <span className="block-pool-round-diag-payout">
+                            {usd0.format(mainPay.amount)}
+                            {mainPay.showAsterisk ? (
+                              <span
+                                className="block-pool-round-diag-payout-ast"
+                                aria-label="This round has additional payout lines; see table below"
+                              >
+                                *
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>
@@ -330,7 +363,8 @@ export default function BlockPoolPage() {
                   ))}
                 </div>
               </React.Fragment>
-            ))}
+              );
+            })}
 
             <div
               className="block-pool-losing-label-wrap block-pool-gc"
@@ -427,6 +461,37 @@ export default function BlockPoolPage() {
                 );
               })).flat()}
           </div>
+
+          <section className="block-pool-payout-section" aria-label="Payout schedule">
+            <h2 className="block-pool-payout-section-title">Payouts</h2>
+            <div className="block-pool-payout-table-scroll">
+              <table className="block-pool-payout-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Round</th>
+                    <th scope="col">Per game</th>
+                    <th scope="col">Payouts</th>
+                    <th scope="col">Total $</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {BLOCK_POOL_PAYOUT_SCHEDULE.rows.map((row) => (
+                    <tr key={`${row.roundLabel}-${row.perGame}`}>
+                      <td>{row.roundLabel}</td>
+                      <td>{usd0.format(row.perGame)}</td>
+                      <td>{row.payouts}</td>
+                      <td>{usd0.format(row.total)}</td>
+                    </tr>
+                  ))}
+                  <tr className="block-pool-payout-table-totals">
+                    <td colSpan={2}>Totals</td>
+                    <td>{BLOCK_POOL_PAYOUT_SCHEDULE.totalPayouts}</td>
+                    <td>{usd0.format(BLOCK_POOL_PAYOUT_SCHEDULE.totalDollars)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       )}
 

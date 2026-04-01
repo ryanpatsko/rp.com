@@ -1459,6 +1459,87 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.block-pool-payout-section {
+  margin-top: 0;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 36rem;
+}
+
+.block-pool-payout-section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #86efac;
+  text-align: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(22, 101, 52, 0.35) 0%, rgba(21, 128, 61, 0.5) 50%, rgba(22, 101, 52, 0.35) 100%);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+}
+
+.block-pool-payout-table-scroll {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(79, 172, 254, 0.28);
+  background: rgba(12, 14, 18, 0.9);
+}
+
+.block-pool-payout-table {
+  width: 100%;
+  min-width: 17rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  color: #e5e7eb;
+}
+
+.block-pool-payout-table th,
+.block-pool-payout-table td {
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.block-pool-payout-table th {
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #93c5fd;
+  background: rgba(79, 172, 254, 0.08);
+}
+
+.block-pool-payout-table td:nth-child(2),
+.block-pool-payout-table td:nth-child(4),
+.block-pool-payout-table th:nth-child(2),
+.block-pool-payout-table th:nth-child(4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.block-pool-payout-table td:nth-child(3),
+.block-pool-payout-table th:nth-child(3) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.block-pool-payout-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.block-pool-payout-table-totals td {
+  font-weight: 800;
+  color: #f8fafc;
+  background: rgba(79, 172, 254, 0.06);
+  border-top: 1px solid rgba(147, 197, 253, 0.25);
+}
+
+.block-pool-payout-table-totals td:nth-child(4) {
+  color: #86efac;
+}
+
 .block-pool-board {
   --bp-losing-lbl-w: minmax(1.85rem, 2.35rem);
   --bp-cell-min-h: 2.45rem;
@@ -1468,12 +1549,13 @@
   /* Narrow label + 6 equal digit/diag cols + 10 equal name/digit cols (full contest width) */
   grid-template-columns:
     var(--bp-losing-lbl-w) repeat(6, minmax(0, 1fr)) repeat(10, minmax(0, 1fr));
-  /* Banner row + 16 equal-height body rows (6 bracket + 10 pool) */
+  /* Banner row + 16 body rows; auto height (no 1fr) so the board doesn’t stretch with empty space above Payouts */
+  gap: 0;
   grid-template-rows:
     minmax(2.15rem, auto)
-    repeat(16, minmax(var(--bp-cell-min-h), 1fr));
-  gap: 0;
-  min-height: clamp(28rem, 72vh, 56rem);
+    repeat(16, minmax(var(--bp-cell-min-h), auto));
+  min-height: 0;
+  align-content: start;
   border: 1px solid rgba(79, 172, 254, 0.35);
   box-shadow: 0 0 24px rgba(79, 172, 254, 0.12);
   background: #0c0e12;
@@ -1512,8 +1594,35 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
+.block-pool-round-diag-cell.block-pool-diag--label {
+  min-height: 3.35rem;
+  padding: 0.2rem 0.1rem;
+}
+
+.block-pool-round-diag-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.06rem;
+  line-height: 1.05;
+}
+
 .block-pool-diag--label .block-pool-round-diag-label-text {
   line-height: 1;
+}
+
+.block-pool-round-diag-payout {
+  font-size: clamp(0.55rem, 1.6vw, 0.72rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.block-pool-round-diag-payout-ast {
+  font-weight: 900;
+  margin-left: 0.04em;
 }
 
 /* Round colors: vibrant jewel / electric mix (not spectral / not monochrome) R6→R1 */
@@ -2105,7 +2214,7 @@
     /* Label + 6 bracket/diag cols + 10 pool cols — mins keep names legible */
     --bp-losing-lbl-w: 2rem;
     --bp-cell-min-h: 2.2rem;
-    min-height: clamp(24rem, 58vh, 44rem);
+    min-height: 0;
     grid-template-columns:
       var(--bp-losing-lbl-w)
       repeat(6, minmax(2.1rem, 2.1rem))
