@@ -6,6 +6,7 @@ import { AgGridProvider } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 import * as contestApi from '../contestApi';
+import { TeamLabel } from '../TeamLogo';
 import './Contests.css';
 
 const ADMIN_GRID_HEIGHT = '50vh';
@@ -241,6 +242,7 @@ export default function AdminPage() {
       id: pl.id,
       name: pl.name,
       team: pl.team_abbreviation || pl.team_name || '—',
+      team_logo_url: pl.team_logo_url,
       position: pl.position || '—',
       region: pl.region ?? '—',
       seed: pl.seed ?? '—',
@@ -250,7 +252,16 @@ export default function AdminPage() {
 
   const adminColumnDefs = useMemo(() => [
     { field: 'name', headerName: 'Name', sortable: true, minWidth: 165 },
-    { field: 'team', headerName: 'Team', sortable: true },
+    {
+      field: 'team',
+      headerName: 'Team',
+      sortable: true,
+      cellRenderer: (params) => {
+        const d = params.data;
+        if (!d) return null;
+        return <TeamLabel logoUrl={d.team_logo_url} text={d.team} />;
+      },
+    },
     { field: 'position', headerName: 'Pos', sortable: true },
     { field: 'region', headerName: 'Region', sortable: true },
     { field: 'seed', headerName: 'Seed', sortable: true },

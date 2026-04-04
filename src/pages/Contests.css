@@ -449,6 +449,27 @@
   gap: 0.4rem;
 }
 
+.player-team-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.team-cell-with-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.draft-player-meta .player-team-logo,
+.player-meta .player-team-logo,
+.leaderboard-player-meta .player-team-logo {
+  width: 20px;
+  height: 20px;
+}
+
 .injury-badge {
   display: inline-flex;
   align-items: center;
@@ -813,15 +834,29 @@
   border-bottom: none;
 }
 
+.team-card-player-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.team-card-player-line .player-team-logo {
+  width: 22px;
+  height: 22px;
+}
+
 .team-card .player-name {
   font-weight: 500;
   color: #fff;
 }
 
 .team-card .player-meta {
+  display: block;
   color: #888;
   font-size: 0.8rem;
-  margin-left: 0.5rem;
+  margin-left: 0;
+  margin-top: 0.2rem;
+  padding-left: calc(22px + 0.45rem);
 }
 
 /* Team card: pseudo-bracket region counts (East over South left, West over Midwest right) */
@@ -1084,6 +1119,33 @@
   font-weight: normal;
 }
 
+.leaderboard-roster-scoring-grid .leaderboard-roster-logo-col {
+  width: 2.5rem;
+  text-align: center;
+  vertical-align: middle;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+.leaderboard-roster-scoring-grid .leaderboard-roster-logo-col .player-team-logo {
+  width: 26px;
+  height: 26px;
+  display: block;
+  margin: 0 auto;
+}
+
+@media (max-width: 767px) {
+  .leaderboard-roster-scoring-grid .leaderboard-roster-logo-col {
+    width: 2rem;
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+  }
+  .leaderboard-roster-scoring-grid .leaderboard-roster-logo-col .player-team-logo {
+    width: 22px;
+    height: 22px;
+  }
+}
+
 .leaderboard-empty {
   color: #666;
   font-style: italic;
@@ -1101,8 +1163,10 @@
 }
 
 .players-grid-wrap {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
   overflow-x: auto;
-  margin-top: 0.75rem;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -2112,6 +2176,15 @@
 
 .block-pool-winners-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.block-pool-winners-table .team-cell-with-logo {
+  gap: 0.35rem;
+}
+
+.block-pool-winners-table .player-team-logo {
+  width: 22px;
+  height: 22px;
 }
 
 .block-pool-winners-score {

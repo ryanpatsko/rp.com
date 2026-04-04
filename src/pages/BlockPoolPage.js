@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import * as contestApi from '../contestApi';
+import { espnTeamLogoUrlForSchoolName } from '../espnTeamLogo';
 import { RegionPill } from '../RegionPill';
+import { TeamLabel } from '../TeamLogo';
 import {
   BLOCK_POOL_YEAR,
   BLOCK_POOL_CONTEST_ID,
@@ -567,8 +569,18 @@ export default function BlockPoolPage() {
                             <td>
                               <RegionPill region={g.region} />
                             </td>
-                            <td>{g.winnerName}</td>
-                            <td>{g.loserName}</td>
+                            <td>
+                              <TeamLabel
+                                logoUrl={espnTeamLogoUrlForSchoolName(g.winnerName)}
+                                text={g.winnerName}
+                              />
+                            </td>
+                            <td>
+                              <TeamLabel
+                                logoUrl={espnTeamLogoUrlForSchoolName(g.loserName)}
+                                text={g.loserName}
+                              />
+                            </td>
                             <td className="block-pool-winners-score">
                               {g.winnerScore}
                               {' '}

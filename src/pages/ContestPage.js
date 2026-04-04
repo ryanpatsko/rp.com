@@ -7,6 +7,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 import * as contestApi from '../contestApi';
 import { regionSlug, RegionPill } from '../RegionPill';
+import { TeamLogo, TeamLabel } from '../TeamLogo';
 import './Contests.css';
 
 const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard', players: 'players' };
@@ -363,7 +364,16 @@ const DRAFT_COLUMN_DEFS = [
       );
     },
   },
-  { field: 'team', headerName: 'Team', sortable: true },
+  {
+    field: 'team',
+    headerName: 'Team',
+    sortable: true,
+    cellRenderer: (params) => {
+      const d = params.data;
+      if (!d) return null;
+      return <TeamLabel logoUrl={d.team_logo_url} text={d.team} />;
+    },
+  },
   { field: 'position', headerName: 'Pos', sortable: true, ...centerAlign },
   {
     field: 'region',
@@ -408,6 +418,7 @@ const DRAFT_COLUMN_DEFS_MOBILE = [
             <InjuryBadge injury={d.injury} />
           </span>
           <span className="draft-player-meta">
+            <TeamLogo url={d.team_logo_url} title={d.team} />
             {d.team} · {d.position}
             {d.region && d.region !== '—' ? (
               <> · <RegionPill region={d.region} /></>
@@ -553,6 +564,7 @@ export default function ContestPage() {
         name: pl.name,
         injury: getPlayerInjury(pl),
         team: pl.team_abbreviation || pl.team_name || '—',
+        team_logo_url: pl.team_logo_url,
         position: pl.position || '—',
         region,
         seed,
@@ -936,7 +948,10 @@ export default function ContestPage() {
                       ) : (
                         players.map((pl) => (
                           <li key={pl.id}>
-                            <span className="player-name">{pl.name}</span>
+                            <span className="team-card-player-line">
+                              <TeamLogo url={pl.team_logo_url} title={pl.team_abbreviation || pl.team_name} />
+                              <span className="player-name">{pl.name}</span>
+                            </span>
                             <span className="player-meta">
                               {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
                               {pl.region && pl.region !== '—' ? (
@@ -1041,10 +1056,11 @@ export default function ContestPage() {
                 <h3 className="leaderboard-roster-title">
                   {managers[selectedLeaderboardManager]} — Roster
                 </h3>
-                <table className="leaderboard-scoring-grid">
+                <table className="leaderboard-scoring-grid leaderboard-roster-scoring-grid">
                   <thead>
                     <tr>
                       <th>Player</th>
+                      <th className="leaderboard-roster-logo-col" aria-label="Team logo" />
                       {[1, 2, 3, 4, 5, 6].map((r) => (
                         <th key={r} className="leaderboard-round-num">{r}</th>
                       ))}
@@ -1054,7 +1070,7 @@ export default function ContestPage() {
                   <tbody>
                     {selectedRosterPlayers.length === 0 ? (
                       <tr>
-                        <td colSpan={NUM_ROUNDS + 2} className="leaderboard-empty">No players yet</td>
+                        <td colSpan={NUM_ROUNDS + 3} className="leaderboard-empty">No players yet</td>
                       </tr>
                     ) : (
                       selectedRosterPlayers.map((pl) => {
@@ -1079,6 +1095,9 @@ export default function ContestPage() {
                                   </>
                                 ) : null}
                               </span>
+                            </td>
+                            <td className="leaderboard-roster-logo-col">
+                              <TeamLogo url={pl.team_logo_url} title={pl.team_abbreviation || pl.team_name} />
                             </td>
                             {[1, 2, 3, 4, 5, 6].map((r) => {
                               const raw = byRound[String(r)];
@@ -1132,6 +1151,7 @@ export default function ContestPage() {
                       return (
                         <tr className="leaderboard-totals-row">
                           <td>Total</td>
+                          <td className="leaderboard-roster-logo-col" />
                           {roundSums.map((n, i) => (
                             <td
                               key={i}
@@ -1202,10 +1222,16 @@ export default function ContestPage() {
                     const totalIsLive = [1, 2, 3, 4, 5, 6].some(
                       (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
                     );
+                    const teamEliminated = elimR != null;
                     return (
                       <tr key={pl.id} className="players-grid-data-row">
                         <td className="leaderboard-player-name players-grid-col-player">{pl.name}</td>
-                        <td className="players-grid-col-team">{pl.team_abbreviation || pl.team_name || '—'}</td>
+                        <td className="players-grid-col-team">
+                          <TeamLabel
+                            logoUrl={pl.team_logo_url}
+                            text={pl.team_abbreviation || pl.team_name || '—'}
+                          />
+                        </td>
                         <td className="players-grid-col-pos">{pl.position || '—'}</td>
                         <td className="players-grid-col-region">
                           {pl.region && pl.region !== '—' ? (
@@ -1249,7 +1275,7 @@ export default function ContestPage() {
                         <td
                           className={[
                             'leaderboard-total-col',
-                            totalIsLive ? 'leaderboard-round-live' : '',
+                            teamEliminated ? 'leaderboard-round-out' : (totalIsLive ? 'leaderboard-round-live' : ''),
                           ]
                             .filter(Boolean)
                             .join(' ')}

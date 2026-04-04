@@ -4,11 +4,18 @@ const fs = require('fs');
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 
 let teamToRegion = {};
+let teamToEspnId = {};
 try {
   const regionsPath = path.join(__dirname, 'bracket-regions.json');
   teamToRegion = JSON.parse(fs.readFileSync(regionsPath, 'utf8')).teamToRegion || {};
 } catch (e) {
   console.warn('bracket-regions.json not loaded:', e.message);
+}
+try {
+  const espnPath = path.join(__dirname, 'team-espn-ids.json');
+  teamToEspnId = JSON.parse(fs.readFileSync(espnPath, 'utf8')).keyToEspnId || {};
+} catch (e) {
+  console.warn('team-espn-ids.json not loaded:', e.message);
 }
 
 const s3 = new S3Client({});
@@ -451,6 +458,45 @@ function regionFromTeamLookup(name, abbr) {
   return best;
 }
 
+function espnTeamIdFromLookup(name, abbr) {
+  if (abbr && teamToEspnId[abbr]) return teamToEspnId[abbr];
+  if (name && teamToEspnId[name]) return teamToEspnId[name];
+  if (!name) return null;
+  const trimmed = String(name).trim();
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  for (let i = parts.length; i >= 1; i--) {
+    const cand = parts.slice(0, i).join(' ');
+    if (teamToEspnId[cand]) return teamToEspnId[cand];
+  }
+  let best = null;
+  let bestLen = 0;
+  for (const k of Object.keys(teamToEspnId)) {
+    if (trimmed === k || trimmed.startsWith(`${k} `)) {
+      if (k.length > bestLen) {
+        bestLen = k.length;
+        best = teamToEspnId[k];
+      }
+    }
+  }
+  return best;
+}
+
+/** Small NCAA logo via ESPN CDN; null when id unknown. */
+function espnTeamLogoUrl(name, abbr) {
+  const id = espnTeamIdFromLookup(name, abbr);
+  if (!id) return null;
+  return `https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500/${id}.png&h=36&w=36`;
+}
+
+function enrichPlayerPoolWithTeamLogos(pool) {
+  if (!Array.isArray(pool)) return pool;
+  return pool.map((p) => {
+    if (p.team_logo_url) return p;
+    const url = espnTeamLogoUrl(p.team_name, p.team_abbreviation);
+    return url ? { ...p, team_logo_url: url } : p;
+  });
+}
+
 /** True when bracket_location looks like a seed/slot (not "East" / "West" etc.). */
 function isBracketLocationSeedLike(loc) {
   if (loc == null) return true;
@@ -721,6 +767,10 @@ async function runImport(bucket, contestId, apiKey) {
         blk_per_game: stats.blk ?? null,
         fg3m_per_game: stats.fg3m ?? null,
         ftm_per_game: stats.ftm ?? null,
+        team_logo_url: espnTeamLogoUrl(
+          teamInfo.name || team.full_name || '',
+          teamInfo.abbreviation || team.abbreviation || '',
+        ),
       };
     });
 
@@ -847,7 +897,8 @@ exports.handler = async (event) => {
     if (resourceLower === 'player-pool') {
       if (method === 'GET') {
         const data = await getS3Json(bucket, `${prefix}/player-pool.json`);
-        return jsonResponse(data ?? []);
+        const pool = Array.isArray(data) ? data : [];
+        return jsonResponse(enrichPlayerPoolWithTeamLogos(pool));
       }
     }
 
