@@ -859,6 +859,39 @@
   padding-left: calc(22px + 0.45rem);
 }
 
+.team-card-player-scores {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.35rem;
+  margin-top: 0.4rem;
+  padding-left: calc(22px + 0.45rem);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-card-score-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  text-align: center;
+}
+
+.team-card-score-total {
+  min-width: 1.75rem;
+  font-weight: 600;
+  margin-left: 0.15rem;
+  padding-left: 0.35rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.team-card .leaderboard-round-num.leaderboard-round-live,
+.team-card .leaderboard-total-col.leaderboard-round-live {
+  color: #4ade80;
+  font-weight: 600;
+}
+
 /* Team card: pseudo-bracket region counts (East over South left, West over Midwest right) */
 .team-card-bracket-wrap {
   display: flex;
@@ -1018,6 +1051,93 @@
   }
   .leaderboard-table-col,
   .leaderboard-roster-col {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+/* Player pool — Past Results tab */
+.past-results-wrap {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.past-results-columns {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.past-results-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.past-results-col--history {
+  flex: 0 1 42%;
+}
+
+.past-results-col--trophy {
+  flex: 0 1 58%;
+}
+
+.past-results-table thead th.past-results-table-title {
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f5f5f5;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.02em;
+}
+
+.past-results-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.past-results-table {
+  width: 100%;
+}
+
+.past-results-note {
+  color: #888;
+  font-style: italic;
+}
+
+.past-results-col-trophies {
+  min-width: 5rem;
+}
+
+.past-results-col-money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.past-results-trophy-cell {
+  vertical-align: middle;
+}
+
+.past-results-trophy-cell .leaderboard-trophy {
+  margin-right: 0.15rem;
+}
+
+.past-results-trophy-cell .leaderboard-trophy:last-child {
+  margin-right: 0;
+}
+
+.past-results-table.leaderboard-table tbody tr {
+  cursor: default;
+}
+
+@media (max-width: 767px) {
+  .past-results-columns {
+    flex-direction: column;
+  }
+  .past-results-col--history,
+  .past-results-col--trophy {
     flex: 1 1 100%;
     width: 100%;
   }

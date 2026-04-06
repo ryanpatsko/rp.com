@@ -8,9 +8,21 @@ import 'ag-grid-community/styles/ag-theme-quartz.css';
 import * as contestApi from '../contestApi';
 import { regionSlug, RegionPill } from '../RegionPill';
 import { TeamLogo, TeamLabel } from '../TeamLogo';
+import {
+  PLAYER_POOL_PAST_RESULTS,
+  PLAYER_POOL_FIRST_PRIZE_USD,
+  PLAYER_POOL_SECOND_PRIZE_USD,
+  buildPlayerPoolTrophyCase,
+} from '../data/playerPoolPastResults';
 import './Contests.css';
 
-const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard', players: 'players' };
+const TABS = { draft: 'draft', teams: 'teams', leaderboard: 'leaderboard', players: 'players', pastResults: 'pastResults' };
+
+const pastResultsMoney = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+});
 /** Match API score refresh schedule (~2 min). */
 const LEADERBOARD_REFRESH_MS = 2 * 60 * 1000;
 const NUM_ROUNDS = 6;
@@ -517,7 +529,7 @@ export default function ContestPage() {
   }, [tab, load, config?.draftOrder?.length, config?.manager_names?.length, config?.managerNames?.length, (draft ?? []).length]);
 
   useEffect(() => {
-    if (tab !== TABS.leaderboard && tab !== TABS.players) return;
+    if (tab !== TABS.leaderboard && tab !== TABS.players && tab !== TABS.teams) return;
     const interval = setInterval(load, LEADERBOARD_REFRESH_MS);
     return () => clearInterval(interval);
   }, [tab, load]);
@@ -738,6 +750,8 @@ export default function ContestPage() {
       .filter(Boolean);
   }, [selectedLeaderboardManager, picksByManager, playerPool]);
 
+  const trophyCaseRows = useMemo(() => buildPlayerPoolTrophyCase(), []);
+
   if (loading && !config) {
     return (
       <div className="contests-page">
@@ -794,6 +808,13 @@ export default function ContestPage() {
           onClick={() => setTab(TABS.players)}
         >
           Players
+        </button>
+        <button
+          type="button"
+          className={tab === TABS.pastResults ? 'active' : ''}
+          onClick={() => setTab(TABS.pastResults)}
+        >
+          Past Results
         </button>
       </nav>
 
@@ -946,25 +967,78 @@ export default function ContestPage() {
                       {players.length === 0 ? (
                         <li className="player-meta">No picks yet</li>
                       ) : (
-                        players.map((pl) => (
-                          <li key={pl.id}>
-                            <span className="team-card-player-line">
-                              <TeamLogo url={pl.team_logo_url} title={pl.team_abbreviation || pl.team_name} />
-                              <span className="player-name">{pl.name}</span>
-                            </span>
-                            <span className="player-meta">
-                              {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
-                              {pl.region && pl.region !== '—' ? (
-                                <>
-                                  {' '}
-                                  <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
-                                    {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
-                                  </span>
-                                </>
-                              ) : null}
-                            </span>
-                          </li>
-                        ))
+                        players.map((pl) => {
+                          const byRound = scores[String(pl.id)] || {};
+                          const elimR = getTeamElimRound(pl, teamEliminatedAfterRound);
+                          const rowTotal = [1, 2, 3, 4, 5, 6].reduce(
+                            (s, r) => s + (Number(byRound[String(r)]) || 0),
+                            0
+                          );
+                          const totalIsLive = [1, 2, 3, 4, 5, 6].some(
+                            (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
+                          );
+                          const teamEliminated = elimR != null;
+                          return (
+                            <li key={pl.id}>
+                              <span className="team-card-player-line">
+                                <TeamLogo url={pl.team_logo_url} title={pl.team_abbreviation || pl.team_name} />
+                                <span className="player-name">{pl.name}</span>
+                              </span>
+                              <span className="player-meta">
+                                {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
+                                {pl.region && pl.region !== '—' ? (
+                                  <>
+                                    {' '}
+                                    <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
+                                      {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
+                                    </span>
+                                  </>
+                                ) : null}
+                              </span>
+                              <div className="team-card-player-scores" aria-label="Points by tournament round">
+                                {[1, 2, 3, 4, 5, 6].map((r) => {
+                                  const raw = byRound[String(r)];
+                                  const pts = Number(raw);
+                                  const hasVal = raw != null && raw !== '' && !Number.isNaN(pts);
+                                  const showX = elimR != null && r > elimR;
+                                  const isLive =
+                                    !showX &&
+                                    hasVal &&
+                                    !!(scoresLive[String(pl.id)] || {})[String(r)];
+                                  const cellCls = [
+                                    'team-card-score-cell',
+                                    'leaderboard-round-num',
+                                    showX ? 'leaderboard-round-out' : '',
+                                    isLive ? 'leaderboard-round-live' : '',
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ');
+                                  return (
+                                    <span
+                                      key={r}
+                                      className={cellCls}
+                                      title={showX ? 'Eliminated — no further games' : `Round ${r}`}
+                                    >
+                                      {showX ? '×' : (hasVal ? pts : '')}
+                                    </span>
+                                  );
+                                })}
+                                <span
+                                  className={[
+                                    'team-card-score-cell',
+                                    'team-card-score-total',
+                                    'leaderboard-total-col',
+                                    teamEliminated ? 'leaderboard-round-out' : (totalIsLive ? 'leaderboard-round-live' : ''),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ')}
+                                >
+                                  {rowTotal}
+                                </span>
+                              </div>
+                            </li>
+                          );
+                        })
                       )}
                     </ul>
                   </div>
@@ -1080,6 +1154,7 @@ export default function ContestPage() {
                         const totalIsLive = [1, 2, 3, 4, 5, 6].some(
                           (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
                         );
+                        const teamEliminated = elimR != null;
                         return (
                           <tr key={pl.id}>
                             <td className="leaderboard-player-name">
@@ -1128,12 +1203,12 @@ export default function ContestPage() {
                             <td
                               className={[
                                 'leaderboard-total-col',
-                                totalIsLive ? 'leaderboard-round-live' : '',
+                                teamEliminated ? 'leaderboard-round-out' : (totalIsLive ? 'leaderboard-round-live' : ''),
                               ]
                                 .filter(Boolean)
                                 .join(' ')}
                             >
-                              {total || ''}
+                              {total}
                             </td>
                           </tr>
                         );
@@ -1162,7 +1237,7 @@ export default function ContestPage() {
                                 .filter(Boolean)
                                 .join(' ')}
                             >
-                              {n || ''}
+                              {n}
                             </td>
                           ))}
                           <td
@@ -1173,7 +1248,7 @@ export default function ContestPage() {
                               .filter(Boolean)
                               .join(' ')}
                           >
-                            {rosterTotal || ''}
+                            {rosterTotal}
                           </td>
                         </tr>
                       );
@@ -1280,7 +1355,7 @@ export default function ContestPage() {
                             .filter(Boolean)
                             .join(' ')}
                         >
-                          {rowTotal || ''}
+                          {rowTotal}
                         </td>
                       </tr>
                     );
@@ -1307,8 +1382,8 @@ export default function ContestPage() {
                             ]
                               .filter(Boolean)
                               .join(' ')}
-                          >
-                            {n || ''}
+                            >
+                            {n}
                           </td>
                         ))}
                         <td
@@ -1319,7 +1394,7 @@ export default function ContestPage() {
                             .filter(Boolean)
                             .join(' ')}
                         >
-                          {grandTotal || ''}
+                          {grandTotal}
                         </td>
                       </tr>
                     );
@@ -1328,6 +1403,101 @@ export default function ContestPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {tab === TABS.pastResults && (
+        <div className="past-results-wrap">
+          <div className="past-results-columns">
+            <div className="past-results-col past-results-col--history">
+              <div className="past-results-table-wrap">
+                <table className="past-results-table leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th colSpan={3} className="past-results-table-title" scope="colgroup">
+                        Finishes by year
+                      </th>
+                    </tr>
+                    <tr>
+                      <th scope="col">Year</th>
+                      <th scope="col">1st</th>
+                      <th scope="col">2nd</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PLAYER_POOL_PAST_RESULTS.map((row) => (
+                      <tr key={row.year}>
+                        <td>{row.year}</td>
+                        {row.note ? (
+                          <td colSpan={2} className="past-results-note">
+                            {row.note}
+                          </td>
+                        ) : (
+                          <>
+                            <td>{row.first}</td>
+                            <td>{row.second}</td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="past-results-col past-results-col--trophy">
+              <div className="past-results-table-wrap">
+                <table className="past-results-table past-results-table--trophy leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th colSpan={4} className="past-results-table-title" scope="colgroup">
+                        Trophy case
+                      </th>
+                    </tr>
+                    <tr>
+                      <th scope="col">Player</th>
+                      <th scope="col" className="past-results-col-trophies">Wins</th>
+                      <th scope="col" className="past-results-col-trophies">2nds</th>
+                      <th scope="col" className="past-results-col-money">Winnings</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trophyCaseRows.map((r) => (
+                      <tr key={r.name}>
+                        <td>{r.name}</td>
+                        <td className="past-results-trophy-cell">
+                          {r.wins > 0
+                            ? Array.from({ length: r.wins }, (_, i) => (
+                              <span
+                                key={i}
+                                className="leaderboard-trophy leaderboard-trophy--gold"
+                                title={`1st place ($${PLAYER_POOL_FIRST_PRIZE_USD})`}
+                              >
+                                🏆
+                              </span>
+                            ))
+                            : '—'}
+                        </td>
+                        <td className="past-results-trophy-cell">
+                          {r.seconds > 0
+                            ? Array.from({ length: r.seconds }, (_, i) => (
+                              <span
+                                key={i}
+                                className="leaderboard-trophy leaderboard-trophy--silver"
+                                title={`2nd place ($${PLAYER_POOL_SECOND_PRIZE_USD})`}
+                              >
+                                🏆
+                              </span>
+                            ))
+                            : '—'}
+                        </td>
+                        <td className="past-results-col-money">{pastResultsMoney.format(r.winnings)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
