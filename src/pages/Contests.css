@@ -180,7 +180,9 @@
 
 .contests-tabs {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.35rem 0.5rem;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid rgba(79, 172, 254, 0.2);
   max-width: 1200px;
@@ -197,6 +199,14 @@
   font-size: 1rem;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  flex: 0 1 auto;
+}
+
+@media (max-width: 767px) {
+  .contests-tabs button {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+  }
 }
 
 .contests-tabs button:hover {
@@ -857,39 +867,6 @@
   margin-left: 0;
   margin-top: 0.2rem;
   padding-left: calc(22px + 0.45rem);
-}
-
-.team-card-player-scores {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.2rem 0.35rem;
-  margin-top: 0.4rem;
-  padding-left: calc(22px + 0.45rem);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.team-card-score-cell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.35rem;
-  text-align: center;
-}
-
-.team-card-score-total {
-  min-width: 1.75rem;
-  font-weight: 600;
-  margin-left: 0.15rem;
-  padding-left: 0.35rem;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.team-card .leaderboard-round-num.leaderboard-round-live,
-.team-card .leaderboard-total-col.leaderboard-round-live {
-  color: #4ade80;
-  font-weight: 600;
 }
 
 /* Team card: pseudo-bracket region counts (East over South left, West over Midwest right) */

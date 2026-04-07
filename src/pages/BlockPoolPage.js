@@ -11,11 +11,17 @@ import {
   WINNING_DIGITS_BY_ROUND,
   LOSING_DIGITS_BY_ROUND,
   BLOCK_ENTRIES,
+  BLOCK_POOL_R6_MANUAL_HALFTIME,
   getBlockPayoutLinesForGame,
   getBlockPoolPayoutSchedule,
   getRoundMainPayoutDisplay,
 } from '../data/blockPool2026';
 import './Contests.css';
+
+/** Pass into getBlockPayoutLinesForGame so R6 Half / Half rev use manual halftime scores. */
+function r6HalftimePayoutArgs(round) {
+  return Number(round) === 6 ? BLOCK_POOL_R6_MANUAL_HALFTIME : null;
+}
 
 const BLOCK_POOL_PAYOUT_SCHEDULE = getBlockPoolPayoutSchedule();
 
@@ -104,7 +110,7 @@ export default function BlockPoolPage() {
   }, []);
 
   const winnersRowsSorted = useMemo(() => {
-    return [...bracketFinal].sort((a, b) => {
+    const raw = [...bracketFinal].sort((a, b) => {
       if (a.round !== b.round) return Number(a.round) - Number(b.round);
       const reg = String(a.region ?? '').localeCompare(String(b.region ?? ''), undefined, {
         sensitivity: 'base',
@@ -116,12 +122,55 @@ export default function BlockPoolPage() {
       if (win !== 0) return win;
       return (Number(a.gameId) || 0) - (Number(b.gameId) || 0);
     });
+    const out = [];
+    for (const g of raw) {
+      if (Number(g.round) === 6 && BLOCK_POOL_R6_MANUAL_HALFTIME) {
+        const baseKey = (Number(g.gameId) || 0) * 10;
+        out.push({
+          ...g,
+          gameId: `${g.gameId}-halftime`,
+          roundDisplay: '6 (half)',
+          winnerName: BLOCK_POOL_R6_MANUAL_HALFTIME.winnerName,
+          loserName: BLOCK_POOL_R6_MANUAL_HALFTIME.loserName,
+          winnerScore: BLOCK_POOL_R6_MANUAL_HALFTIME.winnerScore,
+          loserScore: BLOCK_POOL_R6_MANUAL_HALFTIME.loserScore,
+          payoutFilter: ['half', 'halfRev'],
+          finalWinnerScore: g.winnerScore,
+          finalLoserScore: g.loserScore,
+          winnersSortKey: baseKey,
+        });
+        out.push({
+          ...g,
+          payoutFilter: ['main', 'rev'],
+          finalWinnerScore: g.winnerScore,
+          finalLoserScore: g.loserScore,
+          winnersSortKey: baseKey + 1,
+        });
+      } else {
+        out.push({ ...g, winnersSortKey: (Number(g.gameId) || 0) * 10 });
+      }
+    }
+    return out.sort((a, b) => {
+      if (Number(a.round) !== Number(b.round)) return Number(a.round) - Number(b.round);
+      const reg = String(a.region ?? '').localeCompare(String(b.region ?? ''), undefined, {
+        sensitivity: 'base',
+      });
+      if (reg !== 0) return reg;
+      const sk = (a.winnersSortKey ?? 0) - (b.winnersSortKey ?? 0);
+      if (sk !== 0) return sk;
+      return (Number(a.gameId) || 0) - (Number(b.gameId) || 0);
+    });
   }, [bracketFinal]);
 
   const payoutTotals = useMemo(() => {
     const byBlock = new Map();
     for (const g of bracketFinal) {
-      const lines = getBlockPayoutLinesForGame(g.round, g.winnerScore, g.loserScore);
+      const lines = getBlockPayoutLinesForGame(
+        g.round,
+        g.winnerScore,
+        g.loserScore,
+        r6HalftimePayoutArgs(g.round),
+      );
       for (const line of lines) {
         if (line.blockNum == null) continue;
         const prev = byBlock.get(line.blockNum) ?? {
@@ -152,18 +201,24 @@ export default function BlockPoolPage() {
     for (const g of bracketFinal) {
       const round = Number(g.round);
       if (![1, 2, 3, 4, 5, 6].includes(round)) continue;
-      const lines = getBlockPayoutLinesForGame(round, g.winnerScore, g.loserScore);
+      const lines = getBlockPayoutLinesForGame(
+        round,
+        g.winnerScore,
+        g.loserScore,
+        r6HalftimePayoutArgs(round),
+      );
       for (const line of lines) {
         if (line.blockNum == null) continue;
         if (!map.has(line.blockNum)) map.set(line.blockNum, []);
+        const halfLine = round === 6 && (line.kind === 'half' || line.kind === 'halfRev');
         map.get(line.blockNum).push({
           round,
           amount: line.amount,
           label: line.label,
-          winnerName: g.winnerName,
-          loserName: g.loserName,
-          winnerScore: g.winnerScore,
-          loserScore: g.loserScore,
+          winnerName: halfLine ? BLOCK_POOL_R6_MANUAL_HALFTIME.winnerName : g.winnerName,
+          loserName: halfLine ? BLOCK_POOL_R6_MANUAL_HALFTIME.loserName : g.loserName,
+          winnerScore: halfLine ? BLOCK_POOL_R6_MANUAL_HALFTIME.winnerScore : g.winnerScore,
+          loserScore: halfLine ? BLOCK_POOL_R6_MANUAL_HALFTIME.loserScore : g.loserScore,
           region: g.region,
           gameId: g.gameId,
         });
@@ -558,14 +613,19 @@ export default function BlockPoolPage() {
                     </thead>
                     <tbody>
                       {winnersRowsSorted.map((g) => {
+                        const fw = g.finalWinnerScore != null ? g.finalWinnerScore : g.winnerScore;
+                        const fl = g.finalLoserScore != null ? g.finalLoserScore : g.loserScore;
                         const payoutLines = getBlockPayoutLinesForGame(
                           g.round,
-                          g.winnerScore,
-                          g.loserScore,
-                        );
+                          fw,
+                          fl,
+                          r6HalftimePayoutArgs(g.round),
+                        ).filter((line) => !g.payoutFilter || g.payoutFilter.includes(line.kind));
                         return (
                           <tr key={g.gameId}>
-                            <td className="block-pool-winners-col-round">{g.round}</td>
+                            <td className="block-pool-winners-col-round">
+                              {g.roundDisplay ?? g.round}
+                            </td>
                             <td>
                               <RegionPill region={g.region} />
                             </td>

@@ -34,7 +34,7 @@ export const LOSING_DIGITS_BY_ROUND = {
  * Pool payout lines per round (matches pool spreadsheet).
  * main = ones digit of winner on winning axis, ones of loser on losing axis.
  * rev = same with digits swapped across axes (e.g. main 1–5 → rev 5–1).
- * half / halfRev = same using tens digit of each final score.
+ * half / halfRev = same as main/rev but applied to halftime scores (still ones digit of each score).
  */
 export const ROUND_PAYOUT_LINES = {
   1: [{ kind: 'main', label: 'Main', amount: 50 }],
@@ -61,12 +61,6 @@ function onesDigit(n) {
   return Math.abs(Math.trunc(Number(n))) % 10;
 }
 
-function tensDigit(n) {
-  if (n == null || Number.isNaN(Number(n))) return null;
-  const t = Math.abs(Math.trunc(Number(n)));
-  return Math.floor(t / 10) % 10;
-}
-
 /**
  * @param {1|2|3|4|5|6} round
  * @param {'main'|'rev'|'half'|'halfRev'} kind
@@ -77,9 +71,8 @@ export function resolveBlockForScoreKind(round, winnerScore, loserScore, kind) {
   const loseArr = LOSING_DIGITS_BY_ROUND[round];
   if (!winArr || !loseArr) return { blockNum: null, blockName: null };
 
-  const useTens = kind === 'half' || kind === 'halfRev';
-  const wDig = useTens ? tensDigit(winnerScore) : onesDigit(winnerScore);
-  const lDig = useTens ? tensDigit(loserScore) : onesDigit(loserScore);
+  const wDig = onesDigit(winnerScore);
+  const lDig = onesDigit(loserScore);
   if (wDig == null || lDig == null) return { blockNum: null, blockName: null };
 
   const swapAxes = kind === 'rev' || kind === 'halfRev';
@@ -97,12 +90,38 @@ export function resolveBlockForScoreKind(round, winnerScore, loserScore, kind) {
   };
 }
 
-/** All payout lines with resolved block for one finalized game. */
-export function getBlockPayoutLinesForGame(round, winnerScore, loserScore) {
-  const defs = ROUND_PAYOUT_LINES[round];
+/**
+ * R6 championship halftime — API does not provide half scores; edit here when needed.
+ * Used for half / halfRev payout lines only (ones digit of each half score).
+ * The Blocks / Winners / Payouts UI applies these only while a finalized R6 game exists in
+ * `bracketGamesFinal` (the title game must be final so winner/loser + final scores resolve;
+ * until then, no R6 row appears in that array).
+ */
+export const BLOCK_POOL_R6_MANUAL_HALFTIME = Object.freeze({
+  winnerName: 'Michigan',
+  loserName: 'UConn',
+  winnerScore: 33,
+  loserScore: 29,
+});
+
+/**
+ * All payout lines with resolved block for one finalized game.
+ * @param {{ winnerScore: number, loserScore: number } | null} [halftimeScores] Round 6 only: Half / Half rev use ones digits from these scores; main/rev still use final scores.
+ */
+export function getBlockPayoutLinesForGame(round, winnerScore, loserScore, halftimeScores = null) {
+  const r = Number(round);
+  const defs = ROUND_PAYOUT_LINES[r];
   if (!defs) return [];
+  const useHt =
+    r === 6 &&
+    halftimeScores != null &&
+    halftimeScores.winnerScore != null &&
+    halftimeScores.loserScore != null;
   return defs.map((d) => {
-    const res = resolveBlockForScoreKind(round, winnerScore, loserScore, d.kind);
+    const useHalftimeDigits = useHt && (d.kind === 'half' || d.kind === 'halfRev');
+    const wScore = useHalftimeDigits ? halftimeScores.winnerScore : winnerScore;
+    const lScore = useHalftimeDigits ? halftimeScores.loserScore : loserScore;
+    const res = resolveBlockForScoreKind(r, wScore, lScore, d.kind);
     return {
       kind: d.kind,
       label: d.label,

@@ -346,7 +346,7 @@ function parseBracketAllGames(bracketResponse, defaultRound = null) {
 }
 
 /**
- * Rich bracket game for elimination (BallDontLie rounds 1–7; 7 = championship).
+ * Rich bracket game for elimination (BallDontLie; rounds 1–7 in some feeds, 0 = play-in).
  * home_team / away_team include winner + score when the game is final.
  */
 function teamLabelFromBracket(t) {
@@ -570,16 +570,20 @@ function getWinnerLoserFromDetail(d) {
   };
 }
 
-/** Finalized tournament games (BallDontLie rounds 1–6 only) for block pool / results UI. */
+/**
+ * Finalized tournament games for block pool / results UI.
+ * Pool rounds are 1–6 (R6 = championship). Round 0 is play-in / First Four and is excluded here.
+ */
 function buildBracketFinalResults(allGamesDetail) {
   const byId = new Map();
   for (const g of allGamesDetail) {
-    if (g.round < 1 || g.round > 6) continue;
+    const r = Number(g.round);
+    if (Number.isNaN(r) || r < 1 || r > 6) continue;
     const wl = getWinnerLoserFromDetail(g);
     if (!wl) continue;
     byId.set(g.gameId, {
       gameId: g.gameId,
-      round: g.round,
+      round: r,
       region: resolveBracketGameRegion(g, wl.winnerIsHome),
       winnerName: wl.winnerName,
       loserName: wl.loserName,

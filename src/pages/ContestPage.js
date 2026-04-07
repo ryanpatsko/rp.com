@@ -529,7 +529,7 @@ export default function ContestPage() {
   }, [tab, load, config?.draftOrder?.length, config?.manager_names?.length, config?.managerNames?.length, (draft ?? []).length]);
 
   useEffect(() => {
-    if (tab !== TABS.leaderboard && tab !== TABS.players && tab !== TABS.teams) return;
+    if (tab !== TABS.leaderboard && tab !== TABS.players) return;
     const interval = setInterval(load, LEADERBOARD_REFRESH_MS);
     return () => clearInterval(interval);
   }, [tab, load]);
@@ -967,78 +967,25 @@ export default function ContestPage() {
                       {players.length === 0 ? (
                         <li className="player-meta">No picks yet</li>
                       ) : (
-                        players.map((pl) => {
-                          const byRound = scores[String(pl.id)] || {};
-                          const elimR = getTeamElimRound(pl, teamEliminatedAfterRound);
-                          const rowTotal = [1, 2, 3, 4, 5, 6].reduce(
-                            (s, r) => s + (Number(byRound[String(r)]) || 0),
-                            0
-                          );
-                          const totalIsLive = [1, 2, 3, 4, 5, 6].some(
-                            (r) => !!(scoresLive[String(pl.id)] || {})[String(r)]
-                          );
-                          const teamEliminated = elimR != null;
-                          return (
-                            <li key={pl.id}>
-                              <span className="team-card-player-line">
-                                <TeamLogo url={pl.team_logo_url} title={pl.team_abbreviation || pl.team_name} />
-                                <span className="player-name">{pl.name}</span>
-                              </span>
-                              <span className="player-meta">
-                                {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
-                                {pl.region && pl.region !== '—' ? (
-                                  <>
-                                    {' '}
-                                    <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
-                                      {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
-                                    </span>
-                                  </>
-                                ) : null}
-                              </span>
-                              <div className="team-card-player-scores" aria-label="Points by tournament round">
-                                {[1, 2, 3, 4, 5, 6].map((r) => {
-                                  const raw = byRound[String(r)];
-                                  const pts = Number(raw);
-                                  const hasVal = raw != null && raw !== '' && !Number.isNaN(pts);
-                                  const showX = elimR != null && r > elimR;
-                                  const isLive =
-                                    !showX &&
-                                    hasVal &&
-                                    !!(scoresLive[String(pl.id)] || {})[String(r)];
-                                  const cellCls = [
-                                    'team-card-score-cell',
-                                    'leaderboard-round-num',
-                                    showX ? 'leaderboard-round-out' : '',
-                                    isLive ? 'leaderboard-round-live' : '',
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' ');
-                                  return (
-                                    <span
-                                      key={r}
-                                      className={cellCls}
-                                      title={showX ? 'Eliminated — no further games' : `Round ${r}`}
-                                    >
-                                      {showX ? '×' : (hasVal ? pts : '')}
-                                    </span>
-                                  );
-                                })}
-                                <span
-                                  className={[
-                                    'team-card-score-cell',
-                                    'team-card-score-total',
-                                    'leaderboard-total-col',
-                                    teamEliminated ? 'leaderboard-round-out' : (totalIsLive ? 'leaderboard-round-live' : ''),
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' ')}
-                                >
-                                  {rowTotal}
-                                </span>
-                              </div>
-                            </li>
-                          );
-                        })
+                        players.map((pl) => (
+                          <li key={pl.id}>
+                            <span className="team-card-player-line">
+                              <TeamLogo url={pl.team_logo_url} title={pl.team_abbreviation || pl.team_name} />
+                              <span className="player-name">{pl.name}</span>
+                            </span>
+                            <span className="player-meta">
+                              {pl.position || '—'} · {pl.team_abbreviation || pl.team_name || '—'}
+                              {pl.region && pl.region !== '—' ? (
+                                <>
+                                  {' '}
+                                  <span className={`draft-region-pill draft-region-pill--${regionSlug(pl.region)}`}>
+                                    {pl.region}{pl.seed != null && pl.seed !== '—' ? ` (${pl.seed})` : ''}
+                                  </span>
+                                </>
+                              ) : null}
+                            </span>
+                          </li>
+                        ))
                       )}
                     </ul>
                   </div>
@@ -1105,10 +1052,13 @@ export default function ContestPage() {
                     <td
                       className={[
                         'leaderboard-num',
-                        row.hasLiveScores ? 'leaderboard-round-live' : '',
+                        row.players === 0
+                          ? 'leaderboard-round-out'
+                          : (row.hasLiveScores ? 'leaderboard-round-live' : ''),
                       ]
                         .filter(Boolean)
                         .join(' ')}
+                      title={row.players === 0 ? 'No players remaining in the bracket' : undefined}
                     >
                       {row.points}
                     </td>
