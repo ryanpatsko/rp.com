@@ -8,6 +8,7 @@ export const PLAYER_POOL_SECOND_PRIZE_USD = 100;
 
 /** Year rows: newest first. Use note for years without placings. */
 export const PLAYER_POOL_PAST_RESULTS = [
+  { year: 2026, first: 'Joe K', second: 'Tsal' },
   { year: 2025, first: 'Tsal', second: 'Grew' },
   { year: 2024, first: 'Tsal', second: 'Grew' },
   { year: 2023, first: 'Plako', second: 'Tsal' },
