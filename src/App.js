@@ -12,9 +12,10 @@ import theWave from './assets/the-wave.jpg';
 import thorsHammerFlex from './assets/thors-hammer-flex.jpg';
 import tffLogo from './assets/TFF_Logo_Main_Banner.png';
 import fantasylabsLogo from './assets/FantasyLabs_Logo_FullColor.svg';
-import hallucinationBuckle from './assets/hallucination-100-buckle.jpg';
-import devilDogBuckle from './assets/devil-dog-100-buckle.jpg';
+import zion100Buckle from './assets/zion-100-buckle.jpg';
 import blackCanyonBuckle from './assets/black-canyon-buckle.jpg';
+import devilDogBuckle from './assets/devil-dog-100-buckle.jpg';
+import hallucinationBuckle from './assets/hallucination-100-buckle.jpg';
 
 function App() {
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -109,6 +110,7 @@ function App() {
             <div className="side-projects">
               <a href="https://wildchild-makeup.com/" target="_blank" rel="noopener noreferrer" className="project-link">Wild Child Fabrications</a>
               <a href="https://nervana-health.com" target="_blank" rel="noopener noreferrer" className="project-link">Nervana Health</a>
+              <a href="https://thursday-golf-league.com/" target="_blank" rel="noopener noreferrer" className="project-link">Thursday Golf League</a>
               <a href="#" className="project-link">North Parkley Marathons</a>
               <a href="https://eeeekcreative.com" target="_blank" rel="noopener noreferrer" className="project-link">Eeeek! Creative</a>
             </div>
@@ -123,21 +125,20 @@ function App() {
           <div className="trail-item">
             <div className="trail-badge">100 Miler</div>
             <div className="trail-logo">
-              <img src={hallucinationBuckle} alt="Hallucination 100 Buckle" className="trail-logo-img" />
+              <img src={zion100Buckle} alt="Zion 100 Miler Buckle" className="trail-logo-img" />
             </div>
-            <h3>Hallucination 100</h3>
-            <p>September 2023</p>
+            <h3>Zion 100 Miler</h3>
+            <p>April 2026</p>
+            <a
+              href="https://www.relive.com/view/vwq1zx9YgLv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="trail-link"
+            >
+              View the Relive
+            </a>
           </div>
-          
-          <div className="trail-item">
-            <div className="trail-badge">100 Miler</div>
-            <div className="trail-logo">
-              <img src={devilDogBuckle} alt="Devil Dog 100 Buckle" className="trail-logo-img" />
-            </div>
-            <h3>Devil Dog 100</h3>
-            <p>December 2024</p>
-          </div>
-          
+
           <div className="trail-item">
             <div className="trail-badge">100k</div>
             <div className="trail-logo">
@@ -145,8 +146,34 @@ function App() {
             </div>
             <h3>Black Canyon 100k</h3>
             <p>February 2026</p>
+            <a
+              href="https://www.relive.com/view/vYvExX1oLGq"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="trail-link"
+            >
+              View the Relive
+            </a>
           </div>
-          
+
+          <div className="trail-item">
+            <div className="trail-badge">100 Miler</div>
+            <div className="trail-logo">
+              <img src={devilDogBuckle} alt="Devil Dog 100 Miler Buckle" className="trail-logo-img" />
+            </div>
+            <h3>Devil Dog 100 Miler</h3>
+            <p>December 2024</p>
+          </div>
+
+          <div className="trail-item">
+            <div className="trail-badge">100 Miler</div>
+            <div className="trail-logo">
+              <img src={hallucinationBuckle} alt="Hallucination 100 Miler Buckle" className="trail-logo-img" />
+            </div>
+            <h3>Hallucination 100 Miler</h3>
+            <p>September 2023</p>
+          </div>
+
           <div className="trail-item">
             <div className="trail-badge">Finishes</div>
             <div className="trail-logo">
@@ -155,7 +182,7 @@ function App() {
             <h3>Ultra Portfolio</h3>
             <div className="finish-list">
               <ul>
-                <li>2 100 Milers</li>
+                <li>3 100 Milers</li>
                 <li>1 100k World Trail Major finish</li>
                 <li>Savage Camp 6x4x48</li>
                 <li>5 50 Milers</li>
