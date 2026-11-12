@@ -113,6 +113,7 @@ function App() {
               <a href="https://thursday-golf-league.com/" target="_blank" rel="noopener noreferrer" className="project-link">Thursday Golf League</a>
               <a href="https://northparkleymarathons.com/" target="_blank" rel="noopener noreferrer" className="project-link">North Parkley Marathons</a>
               <a href="https://eeeekcreative.com" target="_blank" rel="noopener noreferrer" className="project-link">Eeeek! Creative</a>
+              <a href="https://www.pittsburghsriversoffire.com/" target="_blank" rel="noopener noreferrer" className="project-link">Rivers of Fire Festival</a>
             </div>
           </div>
         </div>
